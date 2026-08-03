@@ -8,3 +8,6 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
 server:
   port: 9000
+app:
+  encrypt-key: ${APP_ENCRYPT_KEY:default-key-change-me-123456}  # 用于存储api密钥，对称加密，区别于BCrypt的只加密不解密
+  salt: ${SALT:deadbeef}
