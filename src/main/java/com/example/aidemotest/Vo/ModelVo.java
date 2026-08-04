@@ -6,12 +6,6 @@ import lombok.Data;
 public class ModelVo {
     //模型名称
     private String name;
-    //模型提供商
-    private String providerId;
-    //模型API端点
-    private String baseUrl;
-    //模型对应Id
+    //模型对应编号
     private String modelId;
-    //对应modelId
-    private Long id;
 }

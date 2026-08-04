@@ -18,8 +18,6 @@ public class ConversationEntity {
     private String title;
     //系统级prompt
     private String systemPrompt;
-    //对应model
-    private String model;
     //JSON字段
     private String metadata;
     //创建时间

@@ -11,33 +11,26 @@ import com.example.aidemotest.Vo.ModelVo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.crypto.encrypt.TextEncryptor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ModelServiceImpl extends ServiceImpl<ModelMapper, ModelEntity> implements ModelService {
-    private final TextEncryptor apiKeyEncryptor;
-
-    public ModelServiceImpl(@Qualifier("apiKeyEncryptor")TextEncryptor apiKeyEncryptor) {
-        this.apiKeyEncryptor = apiKeyEncryptor;
-    }
-
     @Override
-    public Result<ModelVo> register(ModelDto dto) {
+    public Result<ModelVo> registerModel(ModelDto dto) {
         ModelEntity exist = lambdaQuery()
-                .eq(ModelEntity::getProviderId, dto.getProviderId())
-                .eq(ModelEntity::getModelId, dto.getModelId())
+                .eq(ModelEntity::getModelId,dto.getModelId())
                 .one();
         if (exist != null) {
             throw new BusinessException("模型已存在");
         }
-        ModelEntity model = new ModelEntity();
+        ModelEntity model  = new ModelEntity();
         BeanUtils.copyProperties(dto, model);
-        model.setApiKey(apiKeyEncryptor.encrypt(dto.getApiKey()));
         save(model);
-        ModelVo vo = new ModelVo();
-        BeanUtils.copyProperties(model, vo);
-        return Result.success(vo);
+        ModelVo modelVo = new ModelVo();
+        BeanUtils.copyProperties(model, modelVo);
+        return Result.success(modelVo);
     }
-
 }

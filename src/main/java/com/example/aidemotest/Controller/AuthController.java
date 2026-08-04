@@ -1,14 +1,14 @@
 package com.example.aidemotest.Controller;
 
 import com.example.aidemotest.Common.Result;
-import com.example.aidemotest.Dto.LoginDto;
-import com.example.aidemotest.Dto.RegisterDto;
+import com.example.aidemotest.Dto.Auth.LoginDto;
+import com.example.aidemotest.Dto.Auth.RegisterDto;
+import com.example.aidemotest.Entity.UserEntity;
 import com.example.aidemotest.Service.UserService;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/auth")
@@ -17,13 +17,21 @@ public class AuthController {
     public AuthController(UserService userService) {
         this.userService = userService;
     }
+    //注册用户
     @PostMapping("/register")
     public Result<RegisterDto> register(@Valid @RequestBody RegisterDto dto) {
         return userService.register(dto);
     }
-
+    //用户登录
     @PostMapping("/login")
     public Result<LoginDto> login(@Valid @RequestBody LoginDto dto) {
         return userService.login(dto);
     }
+    //测试用用户查询
+    @GetMapping("/show")
+    public Result<List<UserEntity>> showUsers() {
+        return userService.showUsers();
+    }
+
+
 }

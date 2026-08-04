@@ -5,19 +5,17 @@ import lombok.Data;
 
 @Data
 public class ModelDto {
-    //模型名称
-    @NotBlank(message = "名称不能为空")
-    private String name;
-    //模型提供商
-    @NotBlank(message ="提供商不能为空")
-    private String providerId;
-    //模型API端点
-    @NotBlank(message = "API端点不能为空")
+
+    //模型提供商(使用provider表)
+    @NotBlank(message = "提供商(如openai/anthropicai/orther)不能为空")
+    private String protocol;
+    //URL地址(使用provider表)
+    @NotBlank(message = "URL地址不能为空")
     private String baseUrl;
-    //模型对应Id
-    @NotBlank(message = "模型不能为空")
+    //模型名称(使用model表)
+    @NotBlank(message = "模型名称不能为空")
+    private String name;
+    //模型对应Id(使用model表)
+    @NotBlank(message = "模型(如DeepSeek-V4-Pro)不能为空")
     private String modelId;
-    //apiKey存储
-    @NotBlank(message = "api密钥不能为空")
-    private String apiKey;
 }

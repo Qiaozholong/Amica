@@ -3,14 +3,16 @@ package com.example.aidemotest.Service.Impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.aidemotest.Common.BusinessException;
 import com.example.aidemotest.Common.Result;
-import com.example.aidemotest.Dto.LoginDto;
-import com.example.aidemotest.Dto.RegisterDto;
+import com.example.aidemotest.Dto.Auth.LoginDto;
+import com.example.aidemotest.Dto.Auth.RegisterDto;
 import com.example.aidemotest.Entity.UserEntity;
 import com.example.aidemotest.Mapper.UserMapper;
 import com.example.aidemotest.Service.UserService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity> implements UserService {
@@ -44,6 +46,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity> impleme
         LoginDto result=new LoginDto();
         result.setAccount(exist.getAccount());
         return Result.success(result);
+    }
+    //用户查询入口，测试使用
+    @Override
+    public Result<List<UserEntity>> showUsers() {
+        List<UserEntity> exist=list();
+        return Result.success(exist);
     }
 
 }
