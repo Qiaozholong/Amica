@@ -12,6 +12,8 @@ public class ModelDto {
     //URL地址(使用provider表)
     @NotBlank(message = "URL地址不能为空")
     private String baseUrl;
+    
+
     //模型名称(使用model表)
     @NotBlank(message = "模型名称不能为空")
     private String name;
