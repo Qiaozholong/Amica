@@ -25,6 +25,7 @@ public class OpenAiProvider implements AiProvider {
         this.baseUrl = provider.getBaseUrl();
         this.apiKey = provider.getApiKey();
     }
+    //固定格式，除Exception外无业务耦合
     @Override
     public ChatResponse chat(ChatRequest request){
         try {
@@ -46,19 +47,23 @@ public class OpenAiProvider implements AiProvider {
             throw new BusinessException("请求失败:" + e.getMessage());
         }
     }
+
     // OpenAI 特有：system 作为第一条 message，可选参数映射
     private ObjectNode buildBody(ChatRequest req) {
         ObjectNode root = mapper.createObjectNode();
         ArrayNode msgs = root.putArray("messages");
+        //检测是否存在prompt，存在就套入
         if (req.systemPrompt() != null && !req.systemPrompt().isBlank()) {
             msgs.addObject().put("role", "system").put("content", req.systemPrompt());
         }
+
         for (ChatMessage m : req.messages()) {
             msgs.addObject().put("role", m.toApiRole()).put("content", m.content());
         }
+
         root.put("model", req.model());
         root.put("max_tokens", req.maxTokens());
-        //此处option方法来自ChatOptions,但这个对象是ChatRequest的，这个包需要大修，现在先放着
+
         if (req.options() != null) {
             if (req.options().temperature() != null) root.put("temperature", req.options().temperature());
             if (req.options().topP() != null) root.put("top_p", req.options().topP());
