@@ -18,7 +18,7 @@ public class ChatController {
             @PathVariable Long conversationId,
             @RequestBody MessagesDto dto
     ){
-        return Result.success(chatService.sendMessage(conversationId,dto.getContent()));
+        return Result.success(chatService.sendMessage(conversationId,dto));
     }
 
 

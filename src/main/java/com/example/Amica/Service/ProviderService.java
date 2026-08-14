@@ -14,4 +14,6 @@ public interface ProviderService extends IService<ProviderEntity> {
     ProviderVo registerProvider(ProviderDto dto);
     //注册api密钥的方法
     Result<ApiKeyVo> apiKey(ApiKeyDto dto);
+    //取回api密钥的方法
+    String getApiKey(Long providerId);
 }

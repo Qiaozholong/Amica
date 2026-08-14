@@ -1,5 +1,6 @@
 package com.example.Amica.Service.Impl;
 
+import com.example.Amica.Dto.MessagesDto;
 import com.example.Amica.Entity.*;
 import com.example.Amica.Provider.AiProvider;
 import com.example.Amica.Provider.ProviderFactory;
@@ -19,7 +20,7 @@ public class ChatServiceImpl implements ChatService {
     private final ModelService modelService;
     private final ProviderService providerService;
     private final MessagesService messagesService;
-    ProviderFactory providerFactory;
+    private final ProviderFactory providerFactory;
 
     //构建方法注入
     public ChatServiceImpl(
@@ -40,7 +41,9 @@ public class ChatServiceImpl implements ChatService {
 
     //请求体
     @Override
-    public ChatResponse sendMessage(Long conversationId, String userContent) {
+    public ChatResponse sendMessage(Long conversationId, MessagesDto dto) {
+        //检测传回的tokens是否为零，默认为1024
+        int maxTokens = dto.getMaxtokens()!= 0 ? dto.getMaxtokens() : 1024;
         //查询对话
         ConversationEntity conv = conversationService.getById(conversationId);
         //链路查询
@@ -54,13 +57,13 @@ public class ChatServiceImpl implements ChatService {
                 .eq(MessagesEntity::getConversationId, conversationId)
                 .orderByAsc(MessagesEntity::getSeq)
                 .list();
-        ChatRequest req = new ChatRequest(conv.getSystemPrompt(), model.getModelId(), 1024, ChatOptions.none().withStream(true));
+        ChatRequest req = new ChatRequest(conv.getSystemPrompt(), model.getModelId(), dto.getMaxtokens(), ChatOptions.none());
         for (MessagesEntity m : history) {
             req.messages().add(new ChatMessage(
                     toRole(m.getRole()),
                     m.getContent()));
         }
-        req.addUserMessage(userContent);
+        req.addUserMessage(dto.getContent());
         //发送请求
         AiProvider provider = providerFactory.get(providerEntity);
         ChatResponse resp = provider.chat(req);
@@ -68,7 +71,7 @@ public class ChatServiceImpl implements ChatService {
 
     }
 
-    //toRole方法
+    //toRole方法,这是role的补丁
     private ChatMessage.Role toRole(String role) {
         return switch (role) {
             case "user" -> ChatMessage.Role.USER;

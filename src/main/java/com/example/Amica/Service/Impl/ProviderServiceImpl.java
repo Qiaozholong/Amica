@@ -23,6 +23,7 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
     public ProviderServiceImpl(@Qualifier("apiKeyEncryptor") TextEncryptor apiKeyEncryptor) {
         this.apiKeyEncryptor = apiKeyEncryptor;
     }
+
     //
     @Override
     public ProviderVo registerProvider(ProviderDto dto) {
@@ -55,9 +56,17 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
         Vo.setProviderId(provider.getId());
         return Vo;
     }
+
+    //非接口使用，用于注册以及查询时返回脱敏密钥
+    private String mask(String key) {
+        if (key == null || key.isBlank()) return "";
+        if (key.length() <= 6) return "******";
+        return key.substring(0, 2) + "******" + key.substring(key.length() - 2);
+    }
+
     //注册api密钥
     @Override
-    public Result<ApiKeyVo> apiKey(ApiKeyDto dto){
+    public Result<ApiKeyVo> apiKey(ApiKeyDto dto) {
         ProviderEntity exist = getById(dto.getProviderId());
         if (exist == null) {
             throw new BusinessException("提供商不存在");
@@ -65,13 +74,17 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
         exist.setApiKey(apiKeyEncryptor.encrypt(dto.getApiKey()));
         updateById(exist);
         ApiKeyVo Vo = new ApiKeyVo();
-       Vo.setApiKey(mask(dto.getApiKey()));
+        Vo.setApiKey(mask(dto.getApiKey()));
         return Result.success(Vo);
     }
-    //非接口使用，用于注册以及查询时返回脱敏密钥
-    private String mask(String key){
-        if(key==null || key.isBlank())return "";
-        if(key.length()<=6)return "******";
-        return key.substring(0,2)+"******"+key.substring(key.length()-2);
+
+    @Override
+    private String GetApiKey(Long providerId) {
+        ProviderEntity exist = getById(dto.getProviderId());
+        if (exist == null) {
+            throw new BusinessException("没有已注册的密钥");
+        }
+        String key = exist.setApiKey(apiKeyEncryptor.encrypt(exist.getApiKey()));
+        return key;
     }
 }
