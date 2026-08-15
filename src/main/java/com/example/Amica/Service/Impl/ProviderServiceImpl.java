@@ -79,12 +79,11 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
     }
 
     @Override
-    private String GetApiKey(Long providerId) {
-        ProviderEntity exist = getById(dto.getProviderId());
+    public String GetApiKey(Long providerId) {
+        ProviderEntity exist = getById(providerId);
         if (exist == null) {
             throw new BusinessException("没有已注册的密钥");
         }
-        String key = exist.setApiKey(apiKeyEncryptor.encrypt(exist.getApiKey()));
-        return key;
+        return apiKeyEncryptor.decrypt(exist.getApiKey());
     }
 }

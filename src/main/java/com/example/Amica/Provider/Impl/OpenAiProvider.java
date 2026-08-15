@@ -11,6 +11,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.security.crypto.encrypt.TextEncryptor;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -19,11 +21,13 @@ import java.net.http.HttpResponse;
 public class OpenAiProvider implements AiProvider {
     private final String baseUrl;
     private final String apiKey;
+    private final TextEncryptor apiKeyEncryptor;
     private final HttpClient httpClient =HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
-    public OpenAiProvider(ProviderEntity provider){
+    public OpenAiProvider(ProviderEntity provider,TextEncryptor apiKeyEncryptor) {
         this.baseUrl = provider.getBaseUrl();
-        this.apiKey = provider.getApiKey();
+        this.apiKey = apiKeyEncryptor.decrypt(provider.getApiKey());
+        this.apiKeyEncryptor = apiKeyEncryptor;
     }
     //固定格式，除Exception外无业务耦合
     @Override

@@ -1,6 +1,9 @@
 -- ============================================================
 -- AI Demo Test - 初始建表
--- 基于 5 个 Entity 生成
+-- 基于 6 个 Entity 生成 (User/Provider/Model/Assistant/Conversation/Messages)
+-- 结构与本地库 aiclientdemo 对齐
+-- 建表顺序: user -> provider -> model -> assistant -> conversation -> messages
+-- 注意: 如本地已有同结构表, 需先手动 DROP 旧表再执行
 -- ============================================================
 
 CREATE TABLE user (
@@ -14,16 +17,28 @@ CREATE TABLE user (
     INDEX idx_account (account)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
+CREATE TABLE provider (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(64)                       COMMENT '提供商显示名(如:DeepSeek)',
+    protocol    VARCHAR(32)  NOT NULL             COMMENT '请求体样式(openai/anthropicai/other)',
+    base_url    VARCHAR(255) NOT NULL             COMMENT 'API端点',
+    api_key     VARCHAR(255)                      COMMENT 'API密钥(AES加密存储)',
+    create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_provider (protocol, base_url)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模型提供商表';
+
 CREATE TABLE model (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
     name        VARCHAR(64)  NOT NULL             COMMENT '模型名称: DeepSeek-V4',
-    provider_id VARCHAR(32)  NOT NULL             COMMENT '厂商: deepseek/openai/anthropic',
+    provider_id BIGINT       NOT NULL             COMMENT '提供商ID',
     model_id    VARCHAR(64)  NOT NULL             COMMENT 'API用模型ID: deepseek-v4-flash',
-    base_url    VARCHAR(255) NOT NULL             COMMENT 'API端点',
-    api_key     VARCHAR(255) NOT NULL             COMMENT 'API密钥',
     create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模型/厂商配置表';
+    update_time DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX provider_id (provider_id),
+    UNIQUE KEY uk_model_id (model_id),
+    CONSTRAINT fk_model_provider FOREIGN KEY (provider_id) REFERENCES provider(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模型表';
 
 CREATE TABLE assistant (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -44,7 +59,6 @@ CREATE TABLE conversation (
     assistant_id  BIGINT                           COMMENT '来源助手模板, 可为空',
     title         VARCHAR(255)                     COMMENT '会话标题',
     system_prompt TEXT                             COMMENT '系统提示词, 创建时固化',
-    model         VARCHAR(64)                      COMMENT '模型ID, 创建时固化',
     metadata      JSON                             COMMENT '扩展配置',
     create_time   DATETIME     DEFAULT CURRENT_TIMESTAMP,
     update_time   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
