@@ -43,30 +43,59 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public ChatResponse sendMessage(Long conversationId, MessagesDto dto) {
         //检测传回的tokens是否为零，默认为1024
-        int maxTokens = dto.getMaxtokens()!= 0 ? dto.getMaxtokens() : 1024;
-        //查询对话
+        int maxTokens = dto.getMaxtokens() != 0 ? dto.getMaxtokens() : 1024;
+        //查询对话,确认话题id
         ConversationEntity conv = conversationService.getById(conversationId);
-        //链路查询
+        //链路查询，检查通路是否通畅
         AssistantEntity assistant = assistantService.getById(conv.getAssistantId());
         ModelEntity model = modelService.getById(assistant.getModelId());
         ProviderEntity providerEntity = providerService.getById(model.getProviderId());
         //拼接上下文
-
+        //查询历史消息，根据conversationId的检索与Seq的排序呈现
         List<MessagesEntity> history = messagesService
                 .lambdaQuery()
                 .eq(MessagesEntity::getConversationId, conversationId)
                 .orderByAsc(MessagesEntity::getSeq)
                 .list();
-        ChatRequest req = new ChatRequest(conv.getSystemPrompt(), model.getModelId(), dto.getMaxtokens(), ChatOptions.none());
+        //创建初始化ai请求体
+        ChatRequest req = new ChatRequest(
+                //初始prompt
+                conv.getSystemPrompt(),
+                //模型对象
+                model.getModelId(),
+                //此处接收上方的判断默认值取否
+                maxTokens,
+                //options的record类型中对应参数的开关状态
+                ChatOptions.none()
+        );
+        //增强for循环中，遍历使数组history中参数类型为MessagesEntity的参数m，接收新创建的chatMessage对象
         for (MessagesEntity m : history) {
-            req.messages().add(new ChatMessage(
-                    toRole(m.getRole()),
-                    m.getContent()));
+            req.messages().add(
+                    new ChatMessage(
+                            toRole(m.getRole()),
+                            m.getContent()));
         }
+        //加入用户目前的新消息
         req.addUserMessage(dto.getContent());
+        //这个也是补丁，防止消息队列冲突，检查数组中索引最大位置状态，为空则直接填入，非空跳下一个位置
+        int nextSeq = history.isEmpty() ? 0 : history.get(history.size() - 1).getSeq() + 1;
+        //将用户输入的消息保存到上下文中
+        MessagesEntity userMsg = new MessagesEntity();
+        userMsg.setConversationId(conversationId);
+        userMsg.setRole("user");
+        userMsg.setContent(dto.getContent());
+        userMsg.setSeq(nextSeq);
+        messagesService.save(userMsg);
         //发送请求
         AiProvider provider = providerFactory.get(providerEntity);
         ChatResponse resp = provider.chat(req);
+        //保存接收到的assistant信息
+        MessagesEntity asstMsg = new MessagesEntity();
+        asstMsg.setConversationId(conversationId);
+        asstMsg.setRole("assistant");
+        asstMsg.setContent(resp.content());
+        asstMsg.setSeq(nextSeq + 1);
+        messagesService.save(asstMsg);
         return resp;
 
     }
