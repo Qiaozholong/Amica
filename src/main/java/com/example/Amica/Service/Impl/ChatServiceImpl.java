@@ -58,9 +58,15 @@ public class ChatServiceImpl implements ChatService {
                 .orderByAsc(MessagesEntity::getSeq)
                 .list();
         //创建初始化ai请求体
+        //这是助手级prompt与对话级prompt的补丁，如若未填写对话级prompt，自动补充助手级prompt
+        String sysPrompt = conv.getSystemPrompt();
+        if (sysPrompt == null || sysPrompt.isBlank()) {
+            sysPrompt = assistant.getPrompt();   // 回退到助手默认 prompt
+        }
+
         ChatRequest req = new ChatRequest(
                 //初始prompt
-                conv.getSystemPrompt(),
+                sysPrompt,
                 //模型对象
                 model.getModelId(),
                 //此处接收上方的判断默认值取否

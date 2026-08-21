@@ -16,7 +16,7 @@ public class ConversationEntity {
     private Long assistantId;
     //话题标题
     private String title;
-    //系统级prompt
+    //对话级prompt
     private String systemPrompt;
     //JSON字段
     private String metadata;
