@@ -1,7 +1,7 @@
 package com.example.Amica.Controller;
 
 import com.example.Amica.Common.Result;
-import com.example.Amica.Dto.MessagesDto;
+import com.example.Amica.Dto.Messages.MessagesDto;
 import com.example.Amica.Provider.model.ChatResponse;
 import com.example.Amica.Service.ChatService;
 import org.springframework.web.bind.annotation.*;

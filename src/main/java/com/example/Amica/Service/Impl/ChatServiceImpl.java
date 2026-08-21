@@ -1,6 +1,6 @@
 package com.example.Amica.Service.Impl;
 
-import com.example.Amica.Dto.MessagesDto;
+import com.example.Amica.Dto.Messages.MessagesDto;
 import com.example.Amica.Entity.*;
 import com.example.Amica.Provider.AiProvider;
 import com.example.Amica.Provider.ProviderFactory;

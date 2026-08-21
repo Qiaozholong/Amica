@@ -1,4 +1,4 @@
-package com.example.Amica.Dto;
+package com.example.Amica.Dto.Messages;
 
 import lombok.Data;
 
