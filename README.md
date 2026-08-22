@@ -19,9 +19,9 @@
 | JWT 鉴权 | 规划中 | 等主要接口稳定后再接入,避免影响联调 |
 | 模型提供商注册 | 已实现 | 支持 OpenAI 兼容协议(openai),可扩展 |
 | API Key 管理 | 已实现 | AES 对称加密存储 |
-| 多轮对话(Chat) | 已实现 | 会话上下文拼装 + 多提供商适配 |
-| 助手模板管理 | 规划中 | AssistantController 待实现 |
-| 会话管理 | 规划中 | ConversationController 待实现 |
+| 多轮对话(Chat) | 已实现 | 会话上下文拼装 + 消息落库 + 多提供商适配 |
+| 助手模板管理 | 已实现 | POST /assistant/create |
+| 会话管理 | 已实现 | POST /conversation/create, 默认标题"话题N" |
 
 ## 项目结构
 
@@ -67,9 +67,12 @@ user
 1. 按 `conversationId` 查询会话
 2. 链路查询:conversation -> assistant -> model -> provider
 3. 拉取该会话全部历史消息(按 `seq` 升序)
-4. 组装请求:`system_prompt` + 历史消息 + 新用户消息
-5. `ProviderFactory` 按协议选择 `AiProvider` 实现
-6. 返回 `ChatResponse`
+4. `system_prompt` 为空时回退到 assistant 的 prompt
+5. 组装请求:`system_prompt` + 历史消息 + 新用户消息
+6. 保存用户消息到 `messages` 表
+7. `ProviderFactory` 按协议选择 `AiProvider` 实现
+8. 保存助手回复到 `messages` 表(上下文持续累积)
+9. 返回 `ChatResponse`
 
 ## 快速开始
 
@@ -100,12 +103,16 @@ user
 | GET | `/auth/show` | 用户列表(测试用) |
 | POST | `/model/register` | 模型注册 |
 | POST | `/model/apikey` | API Key 管理 |
+| POST | `/assistant/create` | 创建助手 |
+| POST | `/conversation/create` | 创建会话 |
 | POST | `/chat/{conversationId}/send` | 发送消息 |
 
 ## 路线图
 
-- 接入 JWT 鉴权
-- 助手模板管理、会话管理接口
+- 接入 JWT 鉴权(用户身份从 token 取,不再手传 userId)
+- 本地模型兼容(Ollama 等走 OpenAI 兼容端点,API Key 可空化)
+- 多模态消息(content 从字符串改为数组,支持图片)
+- `messages` 表 `(conversation_id, seq)` 唯一索引,防并发重复
 - 前端形象(虚拟形象 / 桌宠)
 - 多种输出途径,如 TTS 语音播报
 - 类 Agent 能力

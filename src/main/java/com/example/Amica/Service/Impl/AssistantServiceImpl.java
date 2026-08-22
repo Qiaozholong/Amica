@@ -46,6 +46,7 @@ public class AssistantServiceImpl extends ServiceImpl<AssistantMapper, Assistant
         //中间参数调整所需参数
         AssistantVo vo = new AssistantVo();
         BeanUtils.copyProperties(assistantEntity, vo);
+        vo.setAssistantId(assistantEntity.getId());
         vo.setUserName(existUser.getNickname());
         vo.setModelName(existModel.getName());
         return Result.success(vo);
