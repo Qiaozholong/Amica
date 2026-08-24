@@ -1,21 +1,32 @@
 <script setup>
+// ============ 会话与对话页签（最复杂的一个组件，建议最后看）============
+// 学习重点：① state 里的数组直接 push 即可渲染（响应式数组) ② watch 监听变化 ③ 三目运算符
+// 流程：创建会话 -> 选会话打开 -> 聊天（用户消息 + 助手回复本地各推一条，模拟“落库”）
+
 import { reactive, ref, watch } from 'vue'
 import { apiCreateConversation, apiSendMessage } from '../api'
 import { state, upsert } from '../store'
 
+// 创建会话表单（对应后端 ConversationDto：userId/assistantId/title/systemPrompt）
 const form = reactive({ userId: '', assistantId: '', title: '', systemPrompt: '' })
 const msg = ref('')
 const err = ref('')
 const busy = ref(false)
 
-// 当前正在对话的会话
+// 当前正在对话的会话 id（点“打开”按钮设置，聊天框只对当前会话生效）
 const currentId = ref(null)
+// 聊天输入框内容
 const chatText = ref('')
 const chatBusy = ref(false)
 const chatErr = ref('')
+// 聊天参数：maxtokens + 可选的 options（后端目前不会生效，仅为观察请求体）
 const chatForm = reactive({ maxtokens: 0, temperature: '', topP: '', reasoningEffort: '', stream: false })
 
-const current = () => state.conversations.find((c) => c.id === currentId.value)
+// current() 是一个“函数”，模板里每次渲染调用它来拿当前会话对象：
+// 等价于 getCurrentConversation() { return list.find(c => c.id === currentId) }
+function current() {
+  return state.conversations.find((c) => c.id === currentId.value)
+}
 
 async function copy(text) {
   await navigator.clipboard.writeText(text)
@@ -26,12 +37,14 @@ async function doCreate() {
   msg.value = ''
   busy.value = true
   try {
+    // title/systemPrompt 传 null：后端两种“空值”判定方式不一致（==null vs isBlank），传 null 最安全
     const vo = await apiCreateConversation({
       userId: Number(form.userId),
       assistantId: Number(form.assistantId),
       title: form.title || null,
       systemPrompt: form.systemPrompt || null,
     })
+    // 新会话 push 进本地缓存，messages 初始为空数组（相当于建空表）
     upsert(
       state.conversations,
       { id: vo.id, userId: Number(form.userId), assistantId: Number(form.assistantId), title: vo.title, status: vo.status, systemPrompt: form.systemPrompt || null, messages: [] },
@@ -55,6 +68,7 @@ async function doSend() {
   chatBusy.value = true
 
   // 组装请求体：字段名与后端完全一致（maxtokens，非 maxTokens！）
+  // 三目运算符：(条件 ? 值A : 值B)，这里“空字符串就当没传，转 null”
   const options = {
     temperature: chatForm.temperature === '' ? null : Number(chatForm.temperature),
     topP: chatForm.topP === '' ? null : Number(chatForm.topP),
@@ -67,18 +81,24 @@ async function doSend() {
     options,
   }
 
+  // 先把用户消息画到聊天框（本地镜像；后端也存了一份，见 ChatServiceImpl 先落库再调 provider）
+  // at(-1) 取数组最后一个元素（等价于 list.get(list.size()-1)），seq 在本地只用于排序展示
   conv.messages.push({ role: 'user', content, seq: (conv.messages.at(-1)?.seq ?? -1) + 1 })
   try {
     const resp = await apiSendMessage(conv.id, body)
+    // 后端返回完整 ChatResponse，这里展示正文 + token 用量（模板字符串拼进去）
     conv.messages.push({ role: 'assistant', content: resp.content, model: resp.model, tokens: `${resp.inputTokens} in / ${resp.outputtokens} out`, seq: conv.messages.at(-1).seq + 1 })
   } catch (e) {
     // 后端先把用户消息落库、provider 失败时不回滚 —— 下次发消息仍会把这句带进上下文
+    // 本地用一条 role=meta 的“灰色气泡”提示这个怪行为，方便你测的时候注意到
     conv.messages.push({ role: 'meta', content: `⚠ 请求失败：${e.message}（后端已把这条用户消息落库，重发时仍会带进上下文）` })
   } finally {
     chatBusy.value = false
   }
 }
 
+// watch(依赖, 回调)：currentId 变了就回调一次（这里只是清空错误提示）
+// 相当于“属性变更监听器”，store.js 里的 watch 是同款用法
 watch(currentId, () => {
   chatErr.value = ''
 })
@@ -88,6 +108,7 @@ watch(currentId, () => {
   <div class="card">
     <h2>会话与对话</h2>
 
+    <!-- 表单一：创建会话 -->
     <form class="row" @submit.prevent="doCreate">
       <div class="field">
         <label>用户</label>
@@ -130,6 +151,7 @@ watch(currentId, () => {
         <tr><th>id</th><th>标题</th><th>覆盖状态</th><th>消息数</th><th></th></tr>
       </thead>
       <tbody>
+        <!-- :class 动态类名：当前选中的会话行高亮 -->
         <tr v-for="c in state.conversations" :key="c.id" :class="{ 'active-row': c.id === currentId }">
           <td class="mono">{{ c.id }}</td>
           <td>{{ c.title }}</td>
@@ -146,6 +168,7 @@ watch(currentId, () => {
       </tbody>
     </table>
 
+    <!-- 打开会话后才显示聊天框：v-if + current() 有值才渲染整个块 -->
     <template v-if="current()">
       <h3>当前会话：{{ current().title }}（id={{ current().id }}）</h3>
       <div class="hint gray">
@@ -153,6 +176,7 @@ watch(currentId, () => {
         <kbd>options</kbd> 后端<b>当前未生效</b>（ChatServiceImpl 恒传 <kbd>ChatOptions.none()</kbd>），此处发送仅为观察请求体。
       </div>
 
+      <!-- 聊天记录区：v-for 遍历 messages 渲染气泡，:class 绑定角色决定左/右对齐和颜色 -->
       <div class="chat-box">
         <div v-for="(m, i) in current().messages" :key="i" class="bubble" :class="m.role">
           <template v-if="m.role === 'meta'">{{ m.content }}</template>
@@ -165,6 +189,7 @@ watch(currentId, () => {
         <div v-if="chatBusy" class="meta">思考中…</div>
       </div>
 
+      <!-- 表单二：发送消息。@keydown.enter.exact.prevent：回车发送（shift+enter 换行），Ctrl 组合键不触发 -->
       <form class="row" style="margin-top: 8px" @submit.prevent="doSend">
         <div class="field" style="flex: 3">
           <label>消息内容</label>
@@ -172,6 +197,7 @@ watch(currentId, () => {
         </div>
         <div class="field">
           <label>maxtokens（0=后端默认1024）</label>
+          <!-- v-model.number：输入框的值自动转成数字类型，不用再手动 Number() -->
           <input v-model.number="chatForm.maxtokens" type="number" min="0" style="width: 120px" />
         </div>
         <div class="field">
@@ -195,6 +221,7 @@ watch(currentId, () => {
           <label>stream</label>
           <input v-model="chatForm.stream" type="checkbox" style="width: 16px" />
         </div>
+        <!-- :disabled 保证“没有内容也点不动” -->
         <button class="primary" type="submit" :disabled="chatBusy || !chatText.trim()">发送</button>
       </form>
       <div v-if="chatErr" class="msg err">{{ chatErr }}</div>

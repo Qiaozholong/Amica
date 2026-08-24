@@ -52,6 +52,9 @@ npm run build      # 输出 dist/，可托管到任意静态服务器或 Nginx
 
 ## 目录结构
 
+> 所有源码文件都带**学习向注释**（模仿后端注释风格：字段注释用途、关键逻辑注释"为什么"，并标注对应后端概念）。
+> 第一次看建议顺序：`api/http.js`（最像 Java）→ `store.js` → `App.vue` → 各面板组件 → `ChatPanel.vue`（最复杂）。
+
 ```
 frontend/
 ├── index.html

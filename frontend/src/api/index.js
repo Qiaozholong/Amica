@@ -1,6 +1,8 @@
 import { get, post } from './http'
 
-// —— 与后端接口一一对应，字段名保持后端原样（含 maxtokens 这种非标准命名）——
+// ============ 后端接口定义（这一层就是“前端版的 ApiService 接口”）============
+// 每个函数对应 Controller 的一个接口，函数名即方法名，注释里标了后端路径和字段来源
+// 字段名保持后端原样（含 maxtokens 这种非标准命名），前端不擅自改名
 
 // POST /auth/register  注册
 export const apiRegister = (data) => post('/auth/register', data)
@@ -24,5 +26,6 @@ export const apiCreateAssistant = (data) => post('/assistant/create', data)
 export const apiCreateConversation = (data) => post('/conversation/create', data)
 
 // POST /chat/{conversationId}/send 发送消息
+// 路径参数走模板字符串拼接（等价于后端 @PathVariable），data 是 @RequestBody
 export const apiSendMessage = (conversationId, data) =>
   post(`/chat/${conversationId}/send`, data)

@@ -8,7 +8,7 @@
 
 ## P1 - 逻辑/行为异常
 
-### 1. `options` 参数被接受但不生效 ❓
+### 1. `options` 参数被接受但不生效 ❓处理完成，但耦合的问题13还未完成
 - **位置**：`src/main/java/com/example/Amica/Service/Impl/ChatServiceImpl.java` L75
 - **现象**：`MessagesDto.options`（temperature/topP/reasoningEffort/stream）传了也没用，代码恒传 `ChatOptions.none()`。
 - **建议**：把 `dto.getOptions()` 映射进 `ChatOptions`；顺带检查 `stream=true` 时 `OpenAiProvider` 仍是同步解析 JSON 响应，流式会解析失败（见问题 13）。
@@ -46,6 +46,13 @@
   - `GET /assistant/list?userId=`
   - `GET /model/list`、`GET /provider/list`（API Key 脱敏后返回）
 - **前端现状**：`frontend/` 目前把资源缓存在 localStorage 顶替 list 接口（见 `frontend/README.md`），接口补齐后应切换为服务端拉取。
+
+### 19. `reasoningEffort` 三目分支写反（NPE + 用户传值被丢弃）❓
+- **位置**：`ChatServiceImpl.java` L50（`toChatOptions` 内）
+- **现象**：`.withReasoningEffort(o != null && o.getReasoningEffort() != null ? null : o.getReasoningEffort())` 三目分支写反——
+  ① 整体 options 未传（o=null）时进入 else 分支执行 `o.getReasoningEffort()` → NPE；
+  ② 用户传了 reasoningEffort（如 "high"）时条件为 true 却返回 null → 用户值被丢弃，等于恒不传。
+- **建议**：改为 `? o.getReasoningEffort() : null`（传了就收，没传保持 null 不传）。
 
 ---
 

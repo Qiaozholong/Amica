@@ -76,6 +76,7 @@ public class OpenAiProvider implements AiProvider {
         }
         return root;
     }
+
     private ChatResponse parse(String body) throws Exception {
         JsonNode root = mapper.readTree(body);
         String content = root.path("choices").path(0).path("message").path("content").asText();
