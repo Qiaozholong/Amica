@@ -10,8 +10,8 @@ export const apiRegister = (data) => post('/auth/register', data)
 // POST /auth/login     登录（注意：后端只返回 account，不返回 userId）
 export const apiLogin = (data) => post('/auth/login', data)
 
-// GET /auth/show       用户列表（测试用；唯一能拿到 userId 的接口）
-export const apiShowUsers = () => get('/auth/show')
+// GET /auth/get        用户列表（唯一能拿到 userId 的接口；login 返回 id 后此接口主要作调试用）
+export const apiGetUsers = () => get('/auth/get')
 
 // POST /model/register 模型注册（model + provider 一体注册）
 export const apiRegisterModel = (data) => post('/model/register', data)

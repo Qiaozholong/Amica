@@ -11,7 +11,7 @@ export const state = reactive({
   account: saved.account || '',
   // 当前用户的 id（后端 login 不返回 id，见 AuthPanel）
   userId: saved.userId || null,
-  // 从 /auth/show 拉到的用户列表（userId 的唯一来源）
+  // 从 /auth/get 拉到的用户列表（userId 的唯一来源）
   // saved 里的旧数据同样读出来，相当于“打开页面恢复上次的数据”
   users: saved.users || [],
   // providers: [{ providerId, protocol, baseUrl, name, apiKeyMasked }]

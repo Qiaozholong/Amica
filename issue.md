@@ -38,7 +38,7 @@
 - **现象**：注册了模型但没配 Key 就发消息 → 笼统 500「土豆炸啦！？」。
 - **建议**：发送前（或 ProviderFactory）校验，按情况抛「提供商未配置 API Key」。
 
-### 7. 缺少列表/查询接口（前端联调最大痛点）❓
+### 7. 缺少列表/查询接口（前端联调最大痛点）❓处理中，已处理user模块两个接口
 - **位置**：`Controller/` 下只有 create/注册类 POST + `GET /auth/show`；无任何 list/get 接口
 - **现象**：前端无法恢复状态——刷新页面后不知道有哪些会话/助手/模型，只能靠创建接口的返回值收集 ID；`model/register` 甚至不返回 model 实体 id（见问题 10）。
 - **建议**（按需补）：
@@ -47,7 +47,7 @@
   - `GET /model/list`、`GET /provider/list`（API Key 脱敏后返回）
 - **前端现状**：`frontend/` 目前把资源缓存在 localStorage 顶替 list 接口（见 `frontend/README.md`），接口补齐后应切换为服务端拉取。
 
-### 19. `reasoningEffort` 三目分支写反（NPE + 用户传值被丢弃）❓
+### 19. `reasoningEffort` 三目分支写反（NPE + 用户传值被丢弃）❓ 已修正
 - **位置**：`ChatServiceImpl.java` L50（`toChatOptions` 内）
 - **现象**：`.withReasoningEffort(o != null && o.getReasoningEffort() != null ? null : o.getReasoningEffort())` 三目分支写反——
   ① 整体 options 未传（o=null）时进入 else 分支执行 `o.getReasoningEffort()` → NPE；
@@ -75,7 +75,7 @@
 
 ### 11. `login` 不返回 userId ❓
 - **位置**：`UserServiceImpl.java` L46-48（只 set account）
-- **现象**：登录后前端拿不到 id，只能再调 `/auth/show` 按账号匹配（`frontend/` 已用这个临时方案，见 `AuthPanel.vue`）。
+- **现象**：登录后前端拿不到 id，只能再调 `/auth/get` 按账号匹配（`frontend/` 已用这个临时方案，见 `AuthPanel.vue`）。
 - **建议**：`LoginDto`/返回体补 `id`（接入 JWT 后此问题自然消失）。
 
 ### 12. `model/register` 不返回 model 实体 id ❓
@@ -120,7 +120,7 @@
 | 后端问题 | 前端现状 |
 | --- | --- |
 | 无列表接口 | 资源缓存在 localStorage；接口补齐后改服务端拉取 |
-| login 无 userId | AuthPanel 通过 `/auth/show` 按账号匹配 |
+| login 无 userId | AuthPanel 通过 `/auth/get` 按账号匹配 |
 | model/register 无实体 id | ModelPanel 提供手填框（查库） |
 | `maxtokens` 命名 | ChatPanel 严格发 `maxtokens`，界面有提示 |
 | options 未生效 | ChatPanel 照发 + 提示"后端当前未生效" |

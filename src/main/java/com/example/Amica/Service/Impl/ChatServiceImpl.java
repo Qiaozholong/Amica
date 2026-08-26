@@ -42,12 +42,13 @@ public class ChatServiceImpl implements ChatService {
         this.messagesService = messagesService;
         this.providerFactory = providerFactory;
     }
+
     //依旧打补丁，这是option参数接收的补丁
-    private ChatOptions toChatOptions(OptionsDto o){
+    private ChatOptions toChatOptions(OptionsDto o) {
         return ChatOptions.none()
-                .withTemperature(o!=null && o.getTemperature()!=null?o.getTemperature():DEFAULT_TEMPERATURE)
-                .withTopP(o!= null && o.getTopP()!=null?o.getTopP():DEFAULT_TOP_P)
-                .withReasoningEffort(o!= null && o.getReasoningEffort()!=null?null:o.getReasoningEffort());
+                .withTemperature(o != null && o.getTemperature() != null ? o.getTemperature() : DEFAULT_TEMPERATURE)
+                .withTopP(o != null && o.getTopP() != null ? o.getTopP() : DEFAULT_TOP_P)
+                .withReasoningEffort(o != null && o.getReasoningEffort() != null ? o.getReasoningEffort() : null);
         //注意这里没传stream，由于项目还没有处理流式传输的部分，故先挂起
     }
 

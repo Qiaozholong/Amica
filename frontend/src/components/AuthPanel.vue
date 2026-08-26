@@ -7,7 +7,7 @@
 // ④ try/catch 处理后端返回的错误（和 Java 的 try/catch 一模一样，catch 里拿 e.message）
 
 import { reactive, ref } from 'vue'
-import { apiRegister, apiLogin, apiShowUsers } from '../api'
+import { apiRegister, apiLogin, apiGetUsers } from '../api'
 import { state } from '../store'
 
 // 两个表单的数据模型（相当于后端两个 DTO：RegisterDto / LoginDto）
@@ -20,12 +20,12 @@ const err = ref('')
 const busy = ref(false)
 
 // 后端 /auth/login 只返回 account，不返回 userId；
-// 唯一能拿到 userId 的接口是 GET /auth/show，这里按账号匹配（临时联调方案）
+// 唯一能拿到 userId 的接口是 GET /auth/get，这里按账号匹配（临时联调方案）
 async function resolveUserId(account) {
   // await：调用后端接口，等价于同步写法调用 Service 方法
-  const users = await apiShowUsers()
-  // map：把后端返回的 UserEntity 数组转换成前端需要的精简结构
-  // （刻意去掉 password 字段——后端返回了 BCrypt 哈希，前端不该持有它）
+  const users = await apiGetUsers()
+  // map：把后端返回的 UserInfoVo 数组转换成前端需要的精简结构
+  // （后端已不再返回 password 字段，这里只取 id/account/nickname）
   state.users = users.map((u) => ({ id: u.id, account: u.account, nickname: u.nickname }))
   // find：从数组里按条件找第一个匹配项（等价于 SQL where account = ? limit 1）
   const me = state.users.find((u) => u.account === account)
@@ -74,7 +74,7 @@ async function doLogin() {
     <h2>登录 / 注册</h2>
     <div class="hint gray">
       当前后端尚未接入 JWT，所有资源接口都需要手传 <kbd>userId</kbd>。
-      登录接口<i>不返回</i> userId，本控制台通过 <kbd>GET /auth/show</kbd> 按账号匹配获得（临时方案，建议后端在 login 返回体中补上 id）。
+      登录接口<i>不返回</i> userId，本控制台通过 <kbd>GET /auth/get</kbd> 按账号匹配获得（临时方案，建议后端在 login 返回体中补上 id）。
     </div>
     <div v-if="state.userId" class="hint" style="border-color: var(--accent); color: var(--accent)">
       当前用户：<b>{{ state.account }}</b>（userId = {{ state.userId }}）
@@ -118,7 +118,7 @@ async function doLogin() {
     <div v-if="msg" class="msg ok">{{ msg }}</div>
     <div v-if="err" class="msg err">{{ err }}</div>
 
-    <h3>用户列表（GET /auth/show）</h3>
+    <h3>用户列表（GET /auth/get）</h3>
     <!-- table 渲染列表：v-for 遍历 + :key 唯一标识（等价于 for 循环输出 <tr>） -->
     <table class="list">
       <thead>

@@ -5,6 +5,7 @@ import com.example.Amica.Common.Result;
 import com.example.Amica.Dto.Auth.LoginDto;
 import com.example.Amica.Dto.Auth.RegisterDto;
 import com.example.Amica.Entity.UserEntity;
+import com.example.Amica.Vo.UserInfoVo;
 
 import java.util.List;
 
@@ -14,6 +15,8 @@ public interface UserService extends IService<UserEntity> {
     Result<RegisterDto> register(RegisterDto dto);
     //用户登录
     Result<LoginDto> login(LoginDto dto);
-    //用户列表查询，测试用
-    Result<List<UserEntity>> showUsers();
+    //单用户查询（应该是用于登录后查询信息？或者管理员查询，但未引入jwt故暂且歇置）
+    Result<UserInfoVo> getInfo(Long id);
+    //用户总体查询
+    Result<List<UserInfoVo>> getInfos();
 }

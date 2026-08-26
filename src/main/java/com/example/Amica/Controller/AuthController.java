@@ -3,8 +3,8 @@ package com.example.Amica.Controller;
 import com.example.Amica.Common.Result;
 import com.example.Amica.Dto.Auth.LoginDto;
 import com.example.Amica.Dto.Auth.RegisterDto;
-import com.example.Amica.Entity.UserEntity;
 import com.example.Amica.Service.UserService;
+import com.example.Amica.Vo.UserInfoVo;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,11 +27,13 @@ public class AuthController {
     public Result<LoginDto> login(@Valid @RequestBody LoginDto dto) {
         return userService.login(dto);
     }
-    //测试用用户查询
-    @GetMapping("/show")
-    public Result<List<UserEntity>> showUsers() {
-        return userService.showUsers();
-    }
+    //单用户查询
+    @GetMapping("/get/{id}")
+    public Result<UserInfoVo> getUser(@PathVariable Long id) { return userService.getInfo(id);}
+    //多用户查询
+    @GetMapping("/get")
+    public Result<List<UserInfoVo>> getAllUsers() {return userService.getInfos();}
+
 
 
 }

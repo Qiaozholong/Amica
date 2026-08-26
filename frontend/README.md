@@ -22,7 +22,7 @@ npm run build      # 输出 dist/，可托管到任意静态服务器或 Nginx
 
 ## 测试流程（页面顺序即业务顺序）
 
-1. **登录 / 注册** — 注册后自动登录，并通过 `GET /auth/show` 匹配 userId
+1. **登录 / 注册** — 注册后自动登录，并通过 `GET /auth/get` 匹配 userId
 2. **模型提供商** — `POST /model/register` 注册模型，然后在提供商行内配置 API Key（`POST /model/apikey`）
 3. **助手** — `POST /assistant/create`，需要用户在第一步的 userId + 模型的实体 id
 4. **会话与对话** — `POST /conversation/create` 建会话，然后在聊天框里 `POST /chat/{id}/send` 多轮对话
@@ -34,7 +34,7 @@ npm run build      # 输出 dist/，可托管到任意静态服务器或 Nginx
 | --- | --- |
 | 注册 | `POST /auth/register` |
 | 登录 | `POST /auth/login` |
-| 拉取用户列表 | `GET /auth/show` |
+| 拉取用户列表 | `GET /auth/get` |
 | 注册模型 | `POST /model/register` |
 | 配置 API Key | `POST /model/apikey` |
 | 创建助手 | `POST /assistant/create` |
@@ -43,7 +43,7 @@ npm run build      # 输出 dist/，可托管到任意静态服务器或 Nginx
 
 ## 本控制台暴露的后端问题（均会在界面里给出提示）
 
-- `POST /auth/login` 不返回 userId，只能靠 `GET /auth/show` 按账号匹配（建议登录返回体补 id）
+- `POST /auth/login` 不返回 userId，只能靠 `GET /auth/get` 按账号匹配（建议登录返回体补 id）
 - `POST /model/register` 不返回 model 实体 id，创建助手需要的 `modelId` 目前只能查数据库
 - 发送消息时 `options`（temperature 等）后端未生效，恒定传 `ChatOptions.none()`
 - 字段名是 `maxtokens`（非 `maxTokens`），拼错会被静默忽略

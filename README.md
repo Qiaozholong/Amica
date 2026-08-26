@@ -100,7 +100,8 @@ user
 | --- | --- | --- |
 | POST | `/auth/register` | 注册 |
 | POST | `/auth/login` | 登录 |
-| GET | `/auth/show` | 用户列表(测试用) |
+| GET | `/auth/get` | 用户列表 |
+| GET | `/auth/get/{id}` | 单用户查询 |
 | POST | `/model/register` | 模型注册 |
 | POST | `/model/apikey` | API Key 管理 |
 | POST | `/assistant/create` | 创建助手 |

@@ -1,19 +1,15 @@
-package com.example.Amica.Entity;
+package com.example.Amica.Vo;
 
-import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
-@TableName("`user`")
-public class UserEntity {
+public class UserInfoVo {
     //用户id
     private Long id;
     //用户账号
     private String account;
-    //用户密码
-    private String password;
     //用户昵称
     private String nickname;
     //用户状态,哈哈（8/27日）我彻底不知道这行是干嘛的了
