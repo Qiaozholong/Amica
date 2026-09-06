@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class AModelVo {
+    private Long id;
     //模型名称
     private String name;
     //模型对应编号

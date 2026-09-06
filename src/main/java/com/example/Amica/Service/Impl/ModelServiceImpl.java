@@ -11,11 +11,13 @@ import com.example.Amica.Service.ModelService;
 import com.example.Amica.Service.ProviderService;
 import com.example.Amica.Vo.ModelRegister.AModelVo;
 import com.example.Amica.Vo.ModelRegister.ModelVo;
-import com.example.Amica.Vo.ModelRegister.ProviderVo;
+import com.example.Amica.Vo.ModelRegister.RegisteredProviderVo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 
 @Service
@@ -40,7 +42,7 @@ public class ModelServiceImpl extends ServiceImpl<ModelMapper, ModelEntity> impl
         //把得到的数据传给providerImpl,
         ProviderDto provider = new ProviderDto();
         BeanUtils.copyProperties(dto, provider);
-        ProviderVo PVo = providerService.registerProvider(provider);
+        RegisteredProviderVo PVo = providerService.registerProvider(provider);
         //进行创建模型
         ModelEntity model = new ModelEntity();
         BeanUtils.copyProperties(dto, model);
@@ -58,5 +60,15 @@ public class ModelServiceImpl extends ServiceImpl<ModelMapper, ModelEntity> impl
         BeanUtils.copyProperties(MVo, AVo);
         BeanUtils.copyProperties(PVo, AVo);
         return Result.success(AVo);
+    }
+    @Override
+    public Result<List<ModelVo>> getAllModels(Long ProviderId) {
+        List<ModelEntity> entitys = lambdaQuery().eq(ModelEntity::getProviderId, ProviderId).list();
+        List<ModelVo> result = entitys.stream().map(e->{
+            ModelVo vo = new ModelVo();
+            BeanUtils.copyProperties(e, vo);
+            return vo;
+        }).toList();
+        return Result.success(result);
     }
 }

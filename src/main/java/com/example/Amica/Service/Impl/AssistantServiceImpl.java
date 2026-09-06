@@ -15,6 +15,8 @@ import com.example.Amica.Vo.AssistantVo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class AssistantServiceImpl extends ServiceImpl<AssistantMapper, AssistantEntity> implements AssistantService {
     private final UserService userService;
@@ -50,5 +52,11 @@ public class AssistantServiceImpl extends ServiceImpl<AssistantMapper, Assistant
         vo.setUserName(existUser.getNickname());
         vo.setModelName(existModel.getName());
         return Result.success(vo);
+    }
+
+    @Override
+    public Result<List<AssistantEntity>> findAllAssistant() {
+        List<AssistantEntity> result = list();
+        return Result.success(result);
     }
 }

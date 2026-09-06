@@ -6,14 +6,20 @@ import com.example.Amica.Dto.ApiKeyDto;
 import com.example.Amica.Dto.ModelRegister.ProviderDto;
 import com.example.Amica.Entity.ProviderEntity;
 import com.example.Amica.Vo.ApiKeyVo;
-import com.example.Amica.Vo.ModelRegister.ProviderVo;
+import com.example.Amica.Vo.ModelRegister.RegisteredProviderVo;
+import com.example.Amica.Vo.ProviderVo;
+
+import java.util.List;
 
 
 public interface ProviderService extends IService<ProviderEntity> {
     //注册提供商的方法
-    ProviderVo registerProvider(ProviderDto dto);
+    RegisteredProviderVo registerProvider(ProviderDto dto);
     //注册api密钥的方法
     Result<ApiKeyVo> apiKey(ApiKeyDto dto);
-    //取回api密钥的方法
+    //查询api密钥的方法
     String GetApiKey(Long providerId);
+    //查询提供商的方法
+    Result<List<ProviderVo>> getProvider();
+
 }

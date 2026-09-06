@@ -2,9 +2,12 @@ package com.example.Amica.Controller;
 
 import com.example.Amica.Common.Result;
 import com.example.Amica.Dto.Messages.MessagesDto;
+import com.example.Amica.Entity.MessagesEntity;
 import com.example.Amica.Provider.model.ChatResponse;
 import com.example.Amica.Service.ChatService;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/chat")
@@ -20,6 +23,11 @@ public class ChatController {
     ){
         return Result.success(chatService.sendMessage(conversationId,dto));
     }
-
+    @GetMapping("/{conversationId}/get")
+    public Result<List<MessagesEntity>> get(
+            @PathVariable Long conversationId
+    ){
+        return chatService.getMessage(conversationId);
+    }
 
 }

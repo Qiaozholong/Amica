@@ -38,7 +38,7 @@
 - **现象**：注册了模型但没配 Key 就发消息 → 笼统 500「土豆炸啦！？」。
 - **建议**：发送前（或 ProviderFactory）校验，按情况抛「提供商未配置 API Key」。
 
-### 7. 缺少列表/查询接口（前端联调最大痛点）❓处理中，已处理user模块两个接口
+### 7. 缺少列表/查询接口（前端联调最大痛点）❓已修正，但对应的前端代码未修改
 - **位置**：`Controller/` 下只有 create/注册类 POST + `GET /auth/show`；无任何 list/get 接口
 - **现象**：前端无法恢复状态——刷新页面后不知道有哪些会话/助手/模型，只能靠创建接口的返回值收集 ID；`model/register` 甚至不返回 model 实体 id（见问题 10）。
 - **建议**（按需补）：
@@ -68,7 +68,7 @@
 - **现象**：① 不同提供商想注册同名模型（如两个端点都有 `deepseek-chat`）会被"模型已存在"拦下；② 提供商显示名永远等于协议名，`name` 字段没有实际意义。
 - **建议**：唯一键改为 `(provider_id, model_id)`；提供商名由 `ModelDto` 透传或单独接口维护。
 
-### 10. 注册/响应泄露敏感信息 ❓
+### 10. 注册/响应泄露敏感信息 ❓貌似已处理完成，返回体改为userInfoVo，不带password，但jwt问题还未处理，详情见todo列1.
 - **位置**：`UserServiceImpl.java` L36（register 用 `BeanUtils.copyProperties(user, result)` 把 BCrypt 哈希拷进返回体）、L52-54（`/auth/show` 直接返回整个 `UserEntity`）
 - **现象**：注册响应和用户列表都带着 `$2a$...` 密码哈希；`/auth/show` 还是无鉴权公开接口。
 - **建议**：VO 化（响应体不带 password）；`/auth/show` 仅测试用途就加注释说明并计划下线（JWT 上线后删除）。
@@ -78,7 +78,7 @@
 - **现象**：登录后前端拿不到 id，只能再调 `/auth/get` 按账号匹配（`frontend/` 已用这个临时方案，见 `AuthPanel.vue`）。
 - **建议**：`LoginDto`/返回体补 `id`（接入 JWT 后此问题自然消失）。
 
-### 12. `model/register` 不返回 model 实体 id ❓
+### 12. `model/register` 不返回 model 实体 id ❓已修正，通过直接在Vo添加id字段
 - **位置**：`ModelServiceImpl.java` L55-59（ModelVo/AModelVo 都没有 id）
 - **现象**：建助手需要 model 表实体 id，但接口拿不到，只能查库（`frontend/` 目前是手动输入框，见 `ModelPanel.vue`）。
 - **建议**：`AModelVo` 补 `id` 字段。

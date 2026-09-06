@@ -2,13 +2,13 @@ package com.example.Amica.Controller;
 
 import com.example.Amica.Common.Result;
 import com.example.Amica.Dto.ConversationDto;
+import com.example.Amica.Entity.ConversationEntity;
 import com.example.Amica.Service.ConversationService;
 import com.example.Amica.Vo.ConversationVo;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/conversation")
@@ -20,5 +20,9 @@ public class ConversationController {
     @PostMapping("/create")
     public Result<ConversationVo> create(@Valid @RequestBody ConversationDto dto){
         return conversationService.create(dto);
+    }
+    @GetMapping("/getAllConversation")
+    public Result<List<ConversationEntity>> getAllConversation(){
+        return conversationService.findAllConversation();
     }
 }

@@ -6,6 +6,10 @@ import com.example.Amica.Dto.ConversationDto;
 import com.example.Amica.Entity.ConversationEntity;
 import com.example.Amica.Vo.ConversationVo;
 
+import java.util.List;
+
 public interface ConversationService extends IService<ConversationEntity> {
     Result<ConversationVo> create(ConversationDto dto);
+    //会话查询返回
+    Result<List<ConversationEntity>> findAllConversation();
 }

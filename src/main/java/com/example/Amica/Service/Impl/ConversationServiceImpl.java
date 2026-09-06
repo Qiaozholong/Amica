@@ -51,6 +51,11 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
         vo.setTitle(conversationentity.getTitle());
         vo.setStatus(dto.getSystemPrompt()==null?"未覆盖":"已覆盖");
         return Result.success(vo);
+    }
 
+    @Override
+    public Result<List<ConversationEntity>> findAllConversation() {
+        List<ConversationEntity> result = list();
+        return Result.success(result);
     }
 }

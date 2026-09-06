@@ -2,13 +2,13 @@ package com.example.Amica.Controller;
 
 import com.example.Amica.Common.Result;
 import com.example.Amica.Dto.AssistantDto;
+import com.example.Amica.Entity.AssistantEntity;
 import com.example.Amica.Service.AssistantService;
 import com.example.Amica.Vo.AssistantVo;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/assistant")
@@ -21,5 +21,8 @@ public class AssistantController {
     public Result<AssistantVo> createAssistant(@Valid @RequestBody AssistantDto dto) {
         return assistantService.createAssistant(dto);
     }
-
+    @GetMapping("/getAllAssistant")
+    public Result<List<AssistantEntity>> getAllAssistant() {
+        return assistantService.findAllAssistant();
+    }
 }

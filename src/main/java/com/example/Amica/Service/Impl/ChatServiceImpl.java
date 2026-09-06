@@ -1,5 +1,6 @@
 package com.example.Amica.Service.Impl;
 
+import com.example.Amica.Common.Result;
 import com.example.Amica.Dto.Messages.MessagesDto;
 import com.example.Amica.Dto.Messages.OptionsDto;
 import com.example.Amica.Entity.*;
@@ -126,5 +127,15 @@ public class ChatServiceImpl implements ChatService {
             case "assistant" -> ChatMessage.Role.ASSISTANT;
             default -> throw new RuntimeException("未知角色: " + role);
         };
+    }
+    @Override
+    public Result<List<MessagesEntity>> getMessage(Long conversationId){
+        List<MessagesEntity> history = messagesService
+                .lambdaQuery()
+                .eq(MessagesEntity::getConversationId, conversationId)
+                .orderByAsc(MessagesEntity::getSeq)
+                .list();
+
+        return Result.success(history);
     }
 }

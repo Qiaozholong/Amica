@@ -24,5 +24,4 @@ public class ConversationEntity {
     private LocalDateTime createTime;
     //上传时间
     private LocalDateTime updateTime;
-
 }

@@ -9,12 +9,15 @@ import com.example.Amica.Entity.ProviderEntity;
 import com.example.Amica.Mapper.ProviderMapper;
 import com.example.Amica.Service.ProviderService;
 import com.example.Amica.Vo.ApiKeyVo;
-import com.example.Amica.Vo.ModelRegister.ProviderVo;
+import com.example.Amica.Vo.ModelRegister.RegisteredProviderVo;
+import com.example.Amica.Vo.ProviderVo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.encrypt.TextEncryptor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEntity> implements ProviderService {
@@ -26,7 +29,7 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
 
     //
     @Override
-    public ProviderVo registerProvider(ProviderDto dto) {
+    public RegisteredProviderVo registerProvider(ProviderDto dto) {
         //检验运营商是否已存在
         ProviderEntity exist = lambdaQuery()
                 .eq(ProviderEntity::getBaseUrl, dto.getBaseUrl())
@@ -34,7 +37,7 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
                 .one();
         //存在,直接返回查询到的内容
         if (exist != null) {
-            ProviderVo Vo = new ProviderVo();
+            RegisteredProviderVo Vo = new RegisteredProviderVo();
             BeanUtils.copyProperties(exist, Vo);
             return Vo;
         }
@@ -51,7 +54,7 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
                     .one();
             provider = ifExist;
         }
-        ProviderVo Vo = new ProviderVo();
+        RegisteredProviderVo Vo = new RegisteredProviderVo();
         BeanUtils.copyProperties(provider, Vo);
         Vo.setProviderId(provider.getId());
         return Vo;
@@ -85,5 +88,15 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
             throw new BusinessException("没有已注册的密钥");
         }
         return apiKeyEncryptor.decrypt(exist.getApiKey());
+    }
+    @Override
+    public Result<List<ProviderVo>> getProvider() {
+        List<ProviderEntity> entities = list();
+        List<ProviderVo> result = entities.stream().map(e->{
+            ProviderVo vo = new ProviderVo();
+            BeanUtils.copyProperties(e, vo);
+            return vo;
+        }).toList();
+        return Result.success(result);
     }
 }

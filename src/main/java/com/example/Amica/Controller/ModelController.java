@@ -7,8 +7,12 @@ import com.example.Amica.Service.ModelService;
 import com.example.Amica.Service.ProviderService;
 import com.example.Amica.Vo.ApiKeyVo;
 import com.example.Amica.Vo.ModelRegister.AModelVo;
+import com.example.Amica.Vo.ModelRegister.ModelVo;
+import com.example.Amica.Vo.ProviderVo;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/model")
@@ -29,6 +33,18 @@ public class ModelController {
     @PostMapping("/apikey")
     public Result<ApiKeyVo> apikey(@RequestBody ApiKeyDto dto) {
         return providerService.apiKey(dto);
+    }
+    //提供商查询(应该是通过jwt获取的userId查询？但此处无需参数查询，作为测试)
+    @GetMapping("/getallprovider")
+    public Result<List<ProviderVo>> getProvider(){
+        return providerService.getProvider();
+    }
+    //模型查询
+    @GetMapping("/getAllModel/{providerId}")
+    public Result<List<ModelVo>> getAllModel(
+            @PathVariable Long providerId
+    ){
+        return modelService.getAllModels(providerId);
     }
 
 }
