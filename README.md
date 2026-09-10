@@ -8,7 +8,7 @@
 - Spring Boot 4.1
 - MyBatis-Plus 3.5.15 + MySQL
 - Spring Security Crypto(BCrypt 密码加密、AES 密钥加密)
-- JJWT 0.12.6(JWT 鉴权,规划中)
+- JJWT 0.12.6(JWT 签发/验签,模块已就位)
 - Lombok
 
 ## 功能状态
@@ -16,7 +16,7 @@
 | 功能 | 状态 | 说明 |
 | --- | --- | --- |
 | 用户注册 / 登录 | 已实现 | BCrypt 密码加密 |
-| JWT 鉴权 | 规划中 | 等主要接口稳定后再接入,避免影响联调 |
+| JWT 鉴权 | 部分实现 | `JwtUtil` + `JwtAuthenticationFilter` 已就位并生效；`/auth/**` 放行，其余路径需 `Bearer` token；`login` 尚未签发 token |
 | 模型提供商注册 | 已实现 | 支持 OpenAI 兼容协议(openai),可扩展 |
 | API Key 管理 | 已实现 | AES 对称加密存储 |
 | 多轮对话(Chat) | 已实现 | 会话上下文拼装 + 消息落库 + 多提供商适配 |
@@ -33,7 +33,7 @@ Amica/
 ├── src/main/java/com/example/Amica/
 │   ├── Amica.java                # 启动类
 │   ├── Common/                   # Result 统一返回 / 全局异常处理
-│   ├── Config/                   # Security(BCrypt)、AES 加密配置
+│   ├── Config/                   # Security(BCrypt)、AES 加密、JWT(JwtUtil / 过滤器)
 │   ├── Controller/               # auth / chat / model 接口层
 │   ├── Dto/                      # 请求体
 │   ├── Vo/                       # 响应体
@@ -90,10 +90,12 @@ user
 
 ## 配置
 
-| 环境变量 | 说明 |
+| 配置项 | 说明 |
 | --- | --- |
-| `APP_ENCRYPT_KEY` | API Key 的 AES 加密密钥(对称加密) |
-| `SALT` | 密钥加盐 |
+| `APP_ENCRYPT_KEY` | 环境变量:API Key 的 AES 加密密钥(对称加密),缺省值仅供开发 |
+| `SALT` | 环境变量:密钥加盐 |
+| `jwt.secret-key` | `application.yaml`:JWT 签名密钥(HMAC-SHA,需 ≥ 256 bit) |
+| `jwt.expiration` | `application.yaml`:JWT 过期时长(毫秒),当前约 70 天 |
 
 ## API 一览
 
@@ -114,9 +116,11 @@ user
 | POST | `/chat/{conversationId}/send` | 发送消息 |
 | GET | `/chat/{conversationId}/get` | 会话消息列表 |
 
+> **鉴权现状**:除 `/auth/**` 放行外,其余接口当前都要求 `Authorization: Bearer <token>`(JWT 过滤器已注册生效);但 `login` 尚未签发 token,故这些接口暂时拿不到凭证。详见 `issue.md` 第 20 条与 `todo.md` 第 1 项。
+
 ## 路线图
 
-- 接入 JWT 鉴权(用户身份从 token 取,不再手传 userId)
+- 完成 JWT 接入(模块已就位;待办:`login` 签发 token、业务接口从 token 取 userId、过滤器异常处理)
 - 本地模型兼容(Ollama 等走 OpenAI 兼容端点,API Key 可空化)
 - 多模态消息(content 从字符串改为数组,支持图片)
 - `messages` 表 `(conversation_id, seq)` 唯一索引,防并发重复
