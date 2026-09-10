@@ -22,6 +22,7 @@
 | 多轮对话(Chat) | 已实现 | 会话上下文拼装 + 消息落库 + 多提供商适配 |
 | 助手模板管理 | 已实现 | POST /assistant/create |
 | 会话管理 | 已实现 | POST /conversation/create, 默认标题"话题N" |
+| 列表 / 查询接口 | 已实现 | 用户/提供商/模型/助手/会话/消息查询, 统一 Result 返回 |
 
 ## 项目结构
 
@@ -104,9 +105,14 @@ user
 | GET | `/auth/get/{id}` | 单用户查询 |
 | POST | `/model/register` | 模型注册 |
 | POST | `/model/apikey` | API Key 管理 |
+| GET | `/model/getallprovider` | 提供商列表（API Key 已脱敏） |
+| GET | `/model/getAllModel/{providerId}` | 某提供商下的模型列表 |
 | POST | `/assistant/create` | 创建助手 |
+| GET | `/assistant/getAllAssistant` | 助手列表 |
 | POST | `/conversation/create` | 创建会话 |
+| GET | `/conversation/getAllConversation` | 会话列表 |
 | POST | `/chat/{conversationId}/send` | 发送消息 |
+| GET | `/chat/{conversationId}/get` | 会话消息列表 |
 
 ## 路线图
 

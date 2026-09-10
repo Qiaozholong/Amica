@@ -11,3 +11,6 @@ server:
 app:
   encrypt-key: ${APP_ENCRYPT_KEY:default-key-change-me-123456}  # 用于存储api密钥，对称加密，区别于BCrypt的只加密不解密
   salt: ${SALT:deadbeef}
+jwt:
+  secret-key: you-need-a-key-at-least-256-bits-long-here-xxxyou-need-a-key-at-least-256-bits-long-here-xxxyou-need-a-key-at-least-256-bits-long-here-xxxyou-need-a-key-at-least-256-bits-long-here-xxxyou-need-a-key-at-least-256-bits-long-here-xxxyou-need-a-key-at-least-256-bits-long-here-xxxyou-need-a-key-at-least-256-bits-long-here-xxx
+  expiration: 6048000000

@@ -98,6 +98,25 @@
 - **现象**：排查时日志信息不足；兜底文案让前端误以为"后端炸了"，实际可能是参数问题。
 - **建议**：日志带上 `e.getMessage()`（或异常栈）；兜底返回带真实错误摘要（内部细节可另传 header/仅日志）。
 
+### 20. JWT 过滤器：`extractUserId` 在 try/catch 之外，该报 401 的会被漏成 500 ❓未修（倾向方案 B）
+- **位置**：`Config/JwtAuthenticationFilter.java` L44-50（`validateToken` 在 try 内，`extractUserId` 在 try 外）
+- **现象**：`validateToken` 与 `extractUserId` 各自解析一次 token，而 try/catch 只罩住第一次；第二次抛出的运行时异常（`RequiredTypeException` / `NullPointerException`）没人接，直接冒出 `doFilter`。
+  - **后果**：Filter 跑在 `DispatcherServlet` **之前**，`GlobalExceptionHandler`（`@RestControllerAdvice`）**接不到 Filter 里的异常** → 客户端拿到的是容器默认 500（不是 `Result` JSON），**该报 401 的场景被漏成 500**。
+  - **触发条件**（签名与过期都正常时）：payload 缺 `userId` → `claims.get(...)` 返回 `null` → 赋给 `long` 拆箱 NPE；或 `userId` 非数字 → `RequiredTypeException`。（另：`claims.get("userId", long.class)` 传基本类型 Class 必抛，已改 `Long.class`。）
+- **建议**（倾向**方案 B**）：让 `JwtUtil` 暴露 `public Claims parse(String token)`，Filter 内一次解析，验签 + 取值放同一个 try：
+  ```java
+  try {
+      Claims claims = jwtUtil.parse(token);
+      req.setAttribute("userId", claims.get("userId", Long.class));
+  } catch (Exception e) {
+      send401(res, "token无效或已过期");
+      return;
+  }
+  chain.doFilter(request, response);
+  ```
+  方案 A（最小改动）：把 `jwtUtil.extractUserId(token)` 移进已有的 try 块。
+- **备注**：属 `todo.md` 第 1 项（JWT）的一部分，**正式启用 JWT 前必修**。
+
 ---
 
 ## P3 - 后续/备忘
