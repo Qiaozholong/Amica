@@ -3,11 +3,13 @@ package com.example.Amica.Service.Impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.Amica.Common.BusinessException;
 import com.example.Amica.Common.Result;
+import com.example.Amica.Config.JwtUtil;
 import com.example.Amica.Dto.Auth.LoginDto;
 import com.example.Amica.Dto.Auth.RegisterDto;
 import com.example.Amica.Entity.UserEntity;
 import com.example.Amica.Mapper.UserMapper;
 import com.example.Amica.Service.UserService;
+import com.example.Amica.Vo.Auth.AuthVo;
 import com.example.Amica.Vo.UserInfoVo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,14 +22,17 @@ import java.util.List;
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity> implements UserService {
     //构造方法传入PasswordEncoder,避免使用反射注入,先不加jwt验权
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
-    public UserServiceImpl(PasswordEncoder passwordEncoder) {
+    public UserServiceImpl(PasswordEncoder passwordEncoder,JwtUtil jwtUtil) {
+
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
     }
 
     //用户注册方法
     @Override
-    public Result<RegisterDto> register(RegisterDto dto) {
+    public Result<AuthVo> register(RegisterDto dto) {
         UserEntity exist = lambdaQuery().eq(UserEntity::getAccount, dto.getAccount()).one();
         if (exist != null) {
             throw new BusinessException("账号已存在");
@@ -36,20 +41,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity> impleme
         BeanUtils.copyProperties(dto, user);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         save(user);
-        RegisterDto result = new RegisterDto();
+        AuthVo result = new AuthVo();
         BeanUtils.copyProperties(user, result);
+        String token = jwtUtil.generateToken(user.getId(), user.getAccount());
+        result.setToken(token);
         return Result.success(result);
     }
 
     //用户登录方法
     @Override
-    public Result<LoginDto> login(LoginDto dto) {
+    public Result<AuthVo> login(LoginDto dto) {
         UserEntity exist = lambdaQuery().eq(UserEntity::getAccount, dto.getAccount()).one();
         if (exist == null || !passwordEncoder.matches(dto.getPassword(), exist.getPassword())) {
             throw new BusinessException(401, "账号或密码错误");
         }
-        LoginDto result = new LoginDto();
-        result.setAccount(exist.getAccount());
+        AuthVo result = new AuthVo();
+        BeanUtils.copyProperties(exist, result);
+        String token =jwtUtil.generateToken(exist.getId(), exist.getAccount());
+        result.setToken(token);
         return Result.success(result);
     }
 

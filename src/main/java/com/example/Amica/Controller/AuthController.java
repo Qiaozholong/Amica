@@ -4,7 +4,9 @@ import com.example.Amica.Common.Result;
 import com.example.Amica.Dto.Auth.LoginDto;
 import com.example.Amica.Dto.Auth.RegisterDto;
 import com.example.Amica.Service.UserService;
+import com.example.Amica.Vo.Auth.AuthVo;
 import com.example.Amica.Vo.UserInfoVo;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,19 +19,32 @@ public class AuthController {
     public AuthController(UserService userService) {
         this.userService = userService;
     }
+
+
+
     //注册用户
     @PostMapping("/register")
-    public Result<RegisterDto> register(@Valid @RequestBody RegisterDto dto) {
+    public Result<AuthVo> register(@Valid @RequestBody RegisterDto dto) {
         return userService.register(dto);
     }
+
     //用户登录
     @PostMapping("/login")
-    public Result<LoginDto> login(@Valid @RequestBody LoginDto dto) {
+    public Result<AuthVo> login(@Valid @RequestBody LoginDto dto) {
         return userService.login(dto);
     }
+
     //单用户查询
     @GetMapping("/get/{id}")
-    public Result<UserInfoVo> getUser(@PathVariable Long id) { return userService.getInfo(id);}
+    public Result<UserInfoVo> getUser(
+            @PathVariable Long id,
+            HttpServletRequest request
+    )
+    {
+
+        return userService.getInfo(id);
+    }
+
     //多用户查询
     @GetMapping("/get")
     public Result<List<UserInfoVo>> getAllUsers() {return userService.getInfos();}

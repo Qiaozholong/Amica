@@ -5,6 +5,7 @@ import com.example.Amica.Dto.Messages.MessagesDto;
 import com.example.Amica.Entity.MessagesEntity;
 import com.example.Amica.Provider.model.ChatResponse;
 import com.example.Amica.Service.ChatService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,7 +20,7 @@ public class ChatController {
     @PostMapping("/{conversationId}/send")
     public Result<ChatResponse> send(
             @PathVariable Long conversationId,
-            @RequestBody MessagesDto dto
+            @Valid @RequestBody MessagesDto dto
     ){
         return Result.success(chatService.sendMessage(conversationId,dto));
     }

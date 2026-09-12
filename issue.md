@@ -73,7 +73,7 @@
 - **现象**：注册响应和用户列表都带着 `$2a$...` 密码哈希；`/auth/show` 还是无鉴权公开接口。
 - **建议**：VO 化（响应体不带 password）；`/auth/show` 仅测试用途就加注释说明并计划下线（JWT 上线后删除）。
 
-### 11. `login` 不返回 userId ❓
+### 11. `login` 不返回 userId ❓已修正，使用了jwt
 - **位置**：`UserServiceImpl.java` L46-48（只 set account）
 - **现象**：登录后前端拿不到 id，只能再调 `/auth/get` 按账号匹配（`frontend/` 已用这个临时方案，见 `AuthPanel.vue`）。
 - **建议**：`LoginDto`/返回体补 `id`（接入 JWT 后此问题自然消失）。
