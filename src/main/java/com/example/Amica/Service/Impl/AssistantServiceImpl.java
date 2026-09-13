@@ -34,7 +34,11 @@ public class AssistantServiceImpl extends ServiceImpl<AssistantMapper, Assistant
         if (existUser == null) {
             throw new BusinessException(401,"登录状态已失效，请重新登录");
         }
-        ModelEntity existModel = modelService.lambdaQuery().eq(ModelEntity::getId, dto.getModelId()).one();
+        //归属校验：只能引用自己的 model(不再只判"存在")
+        ModelEntity existModel = modelService.lambdaQuery()
+                .eq(ModelEntity::getId, dto.getModelId())
+                .eq(ModelEntity::getUserId, userId)
+                .one();
         if (existModel == null) {
             throw new BusinessException("模型不存在");
         }

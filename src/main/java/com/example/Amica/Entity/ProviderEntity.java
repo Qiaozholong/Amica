@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 public class ProviderEntity {
     //对应提供商Id
     private Long id;
+    //所属用户
+    private Long userId;
     //对应提供商名称(如:DeepSeek)
     private String name;
     //对应请求体样式(如:OpenAi/AnthropicAi)

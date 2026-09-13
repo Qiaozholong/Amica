@@ -12,7 +12,7 @@ import java.util.List;
 
 public interface ModelService extends IService<ModelEntity> {
     //注册model的方法
-    Result<AModelVo> registerModel(ModelDto dto);
+    Result<AModelVo> registerModel(ModelDto dto, Long userId);
     //查询提供商旗下model的方法
-    Result<List<ModelVo>> getAllModels(Long ProviderId);
+    Result<List<ModelVo>> getAllModels(Long providerId, Long userId);
 }

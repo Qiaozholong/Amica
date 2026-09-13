@@ -29,9 +29,10 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
 
     //
     @Override
-    public RegisteredProviderVo registerProvider(ProviderDto dto) {
-        //检验运营商是否已存在
+    public RegisteredProviderVo registerProvider(ProviderDto dto, Long userId) {
+        //检验运营商是否已存在(限定同一用户, 唯一键已改为 (user_id, protocol, base_url))
         ProviderEntity exist = lambdaQuery()
+                .eq(ProviderEntity::getUserId, userId)
                 .eq(ProviderEntity::getBaseUrl, dto.getBaseUrl())
                 .eq(ProviderEntity::getProtocol, dto.getProtocol())
                 .one();
@@ -44,11 +45,13 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
         //不存在,接收数据进行创建,再进行返回
         ProviderEntity provider = new ProviderEntity();
         BeanUtils.copyProperties(dto, provider);
+        provider.setUserId(userId);
         provider.setName(dto.getProtocol());
         try {
             save(provider);
         } catch (DuplicateKeyException e) {
             ProviderEntity ifExist = lambdaQuery()
+                    .eq(ProviderEntity::getUserId, userId)
                     .eq(ProviderEntity::getBaseUrl, dto.getBaseUrl())
                     .eq(ProviderEntity::getProtocol, dto.getProtocol())
                     .one();
@@ -69,10 +72,14 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
 
     //注册api密钥
     @Override
-    public Result<ApiKeyVo> apiKey(ApiKeyDto dto) {
-        ProviderEntity exist = getById(dto.getProviderId());
+    public Result<ApiKeyVo> apiKey(ApiKeyDto dto, Long userId) {
+        //归属校验：只能改自己的提供商
+        ProviderEntity exist = lambdaQuery()
+                .eq(ProviderEntity::getId, dto.getProviderId())
+                .eq(ProviderEntity::getUserId, userId)
+                .one();
         if (exist == null) {
-            throw new BusinessException("提供商不存在");
+            throw new BusinessException("提供商不存在或无权操作");
         }
         exist.setApiKey(apiKeyEncryptor.encrypt(dto.getApiKey()));
         updateById(exist);
@@ -90,8 +97,8 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
         return apiKeyEncryptor.decrypt(exist.getApiKey());
     }
     @Override
-    public Result<List<ProviderVo>> getProvider() {
-        List<ProviderEntity> entities = list();
+    public Result<List<ProviderVo>> getProvider(Long userId) {
+        List<ProviderEntity> entities = lambdaQuery().eq(ProviderEntity::getUserId, userId).list();
         List<ProviderVo> result = entities.stream().map(e->{
             ProviderVo vo = new ProviderVo();
             BeanUtils.copyProperties(e, vo);

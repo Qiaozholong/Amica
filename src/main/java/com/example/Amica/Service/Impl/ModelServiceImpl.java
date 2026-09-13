@@ -31,9 +31,10 @@ public class ModelServiceImpl extends ServiceImpl<ModelMapper, ModelEntity> impl
 
     @Override
     @Transactional
-    public Result<AModelVo> registerModel(ModelDto dto) {
-        //查询数据库中是否有ModelId相同字段，避免重复创建
+    public Result<AModelVo> registerModel(ModelDto dto, Long userId) {
+        //查询该用户下是否已有相同 modelId, 避免重复创建(唯一键已改为 (user_id, model_id))
         ModelEntity exist = lambdaQuery()
+                .eq(ModelEntity::getUserId, userId)
                 .eq(ModelEntity::getModelId, dto.getModelId())
                 .one();
         if (exist != null) {
@@ -42,10 +43,11 @@ public class ModelServiceImpl extends ServiceImpl<ModelMapper, ModelEntity> impl
         //把得到的数据传给providerImpl,
         ProviderDto provider = new ProviderDto();
         BeanUtils.copyProperties(dto, provider);
-        RegisteredProviderVo PVo = providerService.registerProvider(provider);
+        RegisteredProviderVo PVo = providerService.registerProvider(provider, userId);
         //进行创建模型
         ModelEntity model = new ModelEntity();
         BeanUtils.copyProperties(dto, model);
+        model.setUserId(userId);
         model.setProviderId(PVo.getProviderId());
         //规避并发异常
         try {
@@ -62,8 +64,11 @@ public class ModelServiceImpl extends ServiceImpl<ModelMapper, ModelEntity> impl
         return Result.success(AVo);
     }
     @Override
-    public Result<List<ModelVo>> getAllModels(Long ProviderId) {
-        List<ModelEntity> entitys = lambdaQuery().eq(ModelEntity::getProviderId, ProviderId).list();
+    public Result<List<ModelVo>> getAllModels(Long providerId, Long userId) {
+        List<ModelEntity> entitys = lambdaQuery()
+                .eq(ModelEntity::getProviderId, providerId)
+                .eq(ModelEntity::getUserId, userId)
+                .list();
         List<ModelVo> result = entitys.stream().map(e->{
             ModelVo vo = new ModelVo();
             BeanUtils.copyProperties(e, vo);

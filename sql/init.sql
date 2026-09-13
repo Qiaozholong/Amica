@@ -19,24 +19,28 @@ CREATE TABLE user (
 
 CREATE TABLE provider (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id     BIGINT       NOT NULL             COMMENT '所属用户',
     name        VARCHAR(64)                       COMMENT '提供商显示名(如:DeepSeek)',
     protocol    VARCHAR(32)  NOT NULL             COMMENT '请求体样式(openai/anthropicai/other)',
     base_url    VARCHAR(255) NOT NULL             COMMENT 'API端点',
     api_key     VARCHAR(255)                      COMMENT 'API密钥(AES加密存储)',
     create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_provider (protocol, base_url)
+    UNIQUE KEY uk_provider_user (user_id, protocol, base_url),
+    CONSTRAINT fk_provider_user FOREIGN KEY (user_id) REFERENCES user(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模型提供商表';
 
 CREATE TABLE model (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id     BIGINT       NOT NULL             COMMENT '所属用户',
     name        VARCHAR(64)  NOT NULL             COMMENT '模型名称: DeepSeek-V4',
     provider_id BIGINT       NOT NULL             COMMENT '提供商ID',
     model_id    VARCHAR(64)  NOT NULL             COMMENT 'API用模型ID: deepseek-v4-flash',
     create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX provider_id (provider_id),
-    UNIQUE KEY uk_model_id (model_id),
+    UNIQUE KEY uk_model_user (user_id, model_id),
+    CONSTRAINT fk_model_user    FOREIGN KEY (user_id)     REFERENCES user(id),
     CONSTRAINT fk_model_provider FOREIGN KEY (provider_id) REFERENCES provider(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模型表';
 

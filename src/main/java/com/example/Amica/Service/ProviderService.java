@@ -14,12 +14,12 @@ import java.util.List;
 
 public interface ProviderService extends IService<ProviderEntity> {
     //注册提供商的方法
-    RegisteredProviderVo registerProvider(ProviderDto dto);
+    RegisteredProviderVo registerProvider(ProviderDto dto, Long userId);
     //注册api密钥的方法
-    Result<ApiKeyVo> apiKey(ApiKeyDto dto);
+    Result<ApiKeyVo> apiKey(ApiKeyDto dto, Long userId);
     //查询api密钥的方法
     String GetApiKey(Long providerId);
     //查询提供商的方法
-    Result<List<ProviderVo>> getProvider();
+    Result<List<ProviderVo>> getProvider(Long userId);
 
 }

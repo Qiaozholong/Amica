@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 public class ModelEntity {
     //对应模型Id
     private Long id;
+    //所属用户
+    private Long userId;
     //模型名称
     private String name;
     //模型提供商Id(用于绑定Provider)
