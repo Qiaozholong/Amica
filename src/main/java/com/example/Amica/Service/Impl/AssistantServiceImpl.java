@@ -28,11 +28,11 @@ public class AssistantServiceImpl extends ServiceImpl<AssistantMapper, Assistant
     }
 
     @Override
-    public Result<AssistantVo> createAssistant(AssistantDto dto) {
-        UserEntity existUser = userService.lambdaQuery().eq(UserEntity::getId, dto.getUserId()).one();
+    public Result<AssistantVo> createAssistant(AssistantDto dto, Long userId) {
+        UserEntity existUser = userService.lambdaQuery().eq(UserEntity::getId, userId).one();
         //两个if检查外键
         if (existUser == null) {
-            throw new BusinessException("用户不存在");
+            throw new BusinessException(401,"登录状态已失效，请重新登录");
         }
         ModelEntity existModel = modelService.lambdaQuery().eq(ModelEntity::getId, dto.getModelId()).one();
         if (existModel == null) {
@@ -40,7 +40,7 @@ public class AssistantServiceImpl extends ServiceImpl<AssistantMapper, Assistant
         }
         //生成一个空对象用于接收参数以及存储
         AssistantEntity assistantEntity = new AssistantEntity();
-        assistantEntity.setUserId(dto.getUserId());
+        assistantEntity.setUserId(userId);
         assistantEntity.setModelId(dto.getModelId());
         assistantEntity.setName(dto.getName());
         assistantEntity.setPrompt(dto.getPrompt());
