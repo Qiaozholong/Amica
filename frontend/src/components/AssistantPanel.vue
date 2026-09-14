@@ -1,22 +1,60 @@
 <script setup>
 // ============ 助手页签 ============
-// 学习重点：computed 计算属性 —— 从已有数据“派生”出新数据（等价于后端 getter 里的懒计算）
-// 这里 usableModels 过滤出“已补填实体 id”的模型，否则下拉里会有选不了的空行
+// 关键变化：userId 不再由前端选 —— 后端 createAssistant 已经改成从 JWT 取 userId，
+// AssistantDto 里的 userId 字段也删掉了。这里只传 modelId + name + prompt。
+// 另外 model 不再手填 id：将每个提供商下的模型展平成一个下拉（自动带上 model 实体 id）。
 
-import { computed, reactive, ref } from 'vue'
-import { apiCreateAssistant } from '../api'
-import { state, upsert } from '../store'
+import { onMounted, reactive, ref } from 'vue'
+import { apiCreateAssistant, apiGetAssistants, apiGetProviders, apiGetModels } from '../api'
+import { isLoggedIn } from '../store'
 
-// 创建助手表单（对应后端 AssistantDto：userId/modelId/name/prompt）
-// userId 和 modelId 用下拉选，选出来的是字符串，提交时 Number() 转成数字（对应 Long）
-const form = reactive({ userId: '', modelId: '', name: '', prompt: '' })
+const form = reactive({ modelId: '', name: '', prompt: '' })
 const msg = ref('')
 const err = ref('')
 const busy = ref(false)
 
-// computed：依赖 state.models，它一变、这里自动重算（不需要手动调用）
-// 相当于“每次渲染前先执行一遍过滤逻辑”
-const usableModels = computed(() => state.models.filter((m) => m.id))
+// 展平后的可选模型：{ id, name, modelId, providerLabel }
+const modelOptions = ref([])
+// 助手列表（服务端 AssistantEntity：注意字段是 id，不是 assistantId）
+const assistants = ref([])
+
+async function loadModelOptions() {
+  if (!isLoggedIn()) return
+  try {
+    const providers = await apiGetProviders()
+    const out = []
+    // 依次拉取每个提供商下的模型（后端接口是按 providerId 查的）
+    for (const p of providers) {
+      const models = await apiGetModels(p.id)
+      for (const m of models) {
+        out.push({
+          id: m.id,
+          name: m.name,
+          modelId: m.modelId,
+          providerLabel: `${p.protocol} @ ${p.baseUrl}`,
+        })
+      }
+    }
+    modelOptions.value = out
+  } catch (e) {
+    err.value = e.message
+  }
+}
+
+async function loadAssistants() {
+  if (!isLoggedIn()) return
+  try {
+    assistants.value = await apiGetAssistants()
+  } catch (e) {
+    err.value = e.message
+  }
+}
+
+async function loadAll() {
+  err.value = ''
+  await loadModelOptions()
+  await loadAssistants()
+}
 
 async function copy(text) {
   await navigator.clipboard.writeText(text)
@@ -27,60 +65,41 @@ async function doCreate() {
   msg.value = ''
   busy.value = true
   try {
-    // Number()：输入框 select 的 value 是字符串 "1"，后端要 Long，这里显式转换
     const vo = await apiCreateAssistant({
-      userId: Number(form.userId),
       modelId: Number(form.modelId),
       name: form.name,
-      prompt: form.prompt,
+      prompt: form.prompt || null,
     })
-    // 用后端返回的 assistantId 存到本地缓存
-    upsert(
-      state.assistants,
-      {
-        assistantId: vo.assistantId,
-        userId: Number(form.userId),
-        modelId: Number(form.modelId),
-        name: vo.name,
-        prompt: vo.prompt,
-      },
-      (a) => a.assistantId === vo.assistantId
-    )
-    msg.value = `助手创建成功。assistantId=${vo.assistantId}（modelName=${vo.modelName}）`
+    msg.value = `助手创建成功。assistantId=${vo.assistantId}（model=${vo.modelName}）`
+    form.name = ''
+    form.prompt = ''
+    await loadAssistants()
   } catch (e) {
     err.value = e.message
   } finally {
     busy.value = false
   }
 }
+
+onMounted(loadAll)
 </script>
 
 <template>
   <div class="card">
     <h2>助手模板</h2>
     <div class="hint gray">
-      <kbd>userId</kbd> 来自「登录 / 注册」页；<kbd>modelId</kbd> 是 <b>model 表实体 id</b>（不是 API 用的 model_id），
-      需先在「模型提供商」页把模型实体 id 查库补填，否则下拉里选不到。
+      <kbd>userId</kbd> 由后端从 JWT 取（前端不再传）；<kbd>modelId</kbd> 是 <b>model 表实体 id</b>，
+      从下面的下拉里直接选 —— 选项来自「提供商 → 模型」的展开结果。
+      后端在创建时会校验该 model <b>是否属于当前用户</b>，引用别人的模型会被拒。
     </div>
 
-    <!-- 级联选择：用户下拉 + 模型下拉，模型下拉数据来自 computed 过滤后的 usableModels -->
     <form class="row" @submit.prevent="doCreate">
-      <div class="field">
-        <label>用户</label>
-        <!-- option 的 value 绑定 u.id：选中后 form.userId 就是该用户的 id -->
-        <select v-model="form.userId">
-          <option value="" disabled>选择用户</option>
-          <option v-for="u in state.users" :key="u.id" :value="u.id">
-            {{ u.account }} (id={{ u.id }})
-          </option>
-        </select>
-      </div>
-      <div class="field" style="flex: 1">
-        <label>模型（已补填实体id的）</label>
+      <div class="field" style="flex: 2">
+        <label>模型（model 实体 id）</label>
         <select v-model="form.modelId">
           <option value="" disabled>选择模型</option>
-          <option v-for="m in usableModels" :key="m.modelId" :value="m.id">
-            {{ m.name }} (实体id={{ m.id }})
+          <option v-for="m in modelOptions" :key="m.id" :value="m.id">
+            {{ m.name }} (id={{ m.id }}) — {{ m.providerLabel }}
           </option>
         </select>
       </div>
@@ -88,39 +107,41 @@ async function doCreate() {
         <label>助手名称</label>
         <input v-model="form.name" placeholder="Java 导师" required />
       </div>
-      <div class="field">
-        <label>系统提示词（prompt）</label>
-        <!-- textarea：多行文本输入框 -->
+      <div class="field" style="flex: 2">
+        <label>系统提示词（prompt，可空）</label>
         <textarea v-model="form.prompt" placeholder="你是一位 Java 导师……" />
       </div>
-      <!-- :disabled 里多条条件或运算：没选用户、没选模型、正在请求时都禁用 -->
-      <button class="primary" type="submit" :disabled="busy || !form.userId || !form.modelId">
+      <button class="primary" type="submit" :disabled="busy || !isLoggedIn() || !form.modelId">
         创建助手
       </button>
+      <button class="ghost" type="button" @click="loadAll">刷新</button>
     </form>
 
     <div v-if="msg" class="msg ok">{{ msg }}</div>
     <div v-if="err" class="msg err">{{ err }}</div>
 
-    <h3>已创建助手</h3>
+    <h3>
+      助手列表（GET /assistant/getAllAssistant）
+      <button class="ghost" style="margin-left: 8px" @click="loadAssistants">刷新</button>
+    </h3>
     <table class="list">
       <thead>
-        <tr><th>assistantId</th><th>名称</th><th>userId</th><th>model 实体id</th><th>prompt</th></tr>
+        <tr><th>id</th><th>名称</th><th>model 实体 id</th><th>prompt</th></tr>
       </thead>
       <tbody>
-        <tr v-for="a in state.assistants" :key="a.assistantId">
+        <tr v-for="a in assistants" :key="a.id">
           <td class="mono">
-            {{ a.assistantId }}
-            <button class="ghost" @click="copy(a.assistantId)">复制</button>
+            {{ a.id }}
+            <button class="ghost" @click="copy(a.id)">复制</button>
           </td>
           <td>{{ a.name }}</td>
-          <td class="mono">{{ a.userId }}</td>
           <td class="mono">{{ a.modelId }}</td>
-          <!-- prompt 可能很长，限制展示宽度 + 允许换行截断 -->
-          <td style="max-width: 280px; word-break: break-all">{{ a.prompt }}</td>
+          <td style="max-width: 320px; word-break: break-all">{{ a.prompt }}</td>
         </tr>
-        <tr v-if="!state.assistants.length">
-          <td colspan="5" class="hint gray" style="border: none">暂无助手</td>
+        <tr v-if="!assistants.length">
+          <td colspan="4" class="hint gray" style="border: none">
+            {{ isLoggedIn() ? '暂无助手' : '未登录 —— 请先到「登录 / 注册」页登录' }}
+          </td>
         </tr>
       </tbody>
     </table>

@@ -1,11 +1,11 @@
 import { reactive } from 'vue'
+import { state, clearAuth } from '../store'
 
-// ============ 请求封装（本文件是前端“最像你会的 Java”的部分，建议第一个看）============
-// 对应后端 GlobalExceptionHandler 那套约定：HTTP 恒为 200，业务成败看响应体里的 code
-// 全部接口只用 fetch（浏览器的发请求方法，等价于 HttpClient）+ async/await（等价于同步阻塞调用）
-// 另外顺带做了“调试日志”：每一次请求的原文都记录到 debugLogs，调试页直接展示
+// ============ 请求封装 ============
+// 约定：后端业务错误走「HTTP 200 + body.code」，但 JWT 过滤器拦截时是「HTTP 401 + body.code=401」。
+// 两种都要处理，且每次请求/响应原文都记进 debugLogs（调试页可回看）。
 
-// 所有请求的调试日志（Postman 替代品的核心：每次调用可回看请求/响应原文）
+// 所有请求的调试日志（Postman 替代品的核心）
 export const debugLogs = reactive([])
 
 let seq = 0
@@ -14,11 +14,10 @@ let seq = 0
  * 统一请求入口
  * @param method GET/POST
  * @param path   后端路径，如 /auth/login（带 /api 前缀，由 vite 代理转发到 :9000）
- * @param body   请求体对象，会自动 JSON.stringify（等价于后端 @RequestBody 接收的 JSON）
+ * @param body   请求体对象，自动 JSON.stringify
  * @returns 后端 Result 里的 data 字段
  */
 export async function request(method, path, body) {
-  // 日志条目：先用“草稿”结构占位，请求结束后把结果填回去（unshift 插到列表最前，最新的在上面）
   const entry = {
     id: ++seq,
     time: new Date().toLocaleTimeString(),
@@ -34,15 +33,18 @@ export async function request(method, path, body) {
   debugLogs.unshift(entry)
   const start = Date.now()
   try {
-    // await 挂起当前“线程”（其实是协程），等 fetch 返回后再继续，写法上像同步代码
+    const headers = { 'Content-Type': 'application/json' }
+    // 带上 JWT —— 少了这个头，除 /auth/** 之外的接口一律 401
+    if (state.token) headers.Authorization = `Bearer ${state.token}`
+
     const resp = await fetch('/api' + path, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     })
     entry.status = resp.status
     const text = await resp.text()
-    // 响应体尝试解析成 JSON；解析失败（如代理返回 HTML 错误页）就用 {raw: 原文} 兜底，不抛异常
+    // 响应体尝试解析成 JSON；解析失败（如代理返回 HTML 错误页）就用 {raw: 原文} 兜底
     let json = null
     try {
       json = text ? JSON.parse(text) : null
@@ -52,17 +54,21 @@ export async function request(method, path, body) {
     entry.respBody = json
     entry.ms = Date.now() - start
 
-    // 判断业务成败：后端 HTTP 恒 200，所以优先看响应体里的 code，取不到才看 HTTP 状态码
+    // 业务成败：优先看 body.code，取不到才看 HTTP 状态码
     const code = json && typeof json.code === 'number' ? json.code : resp.status
     entry.ok = code >= 200 && code < 300
     if (!entry.ok) {
-      // 失败抛 Error，message 用后端返回的 message，页面 catch 后直接展示
+      // 401 = token 缺失/过期/无效 → 清掉本地登录态，让界面回到未登录
+      if (code === 401 || resp.status === 401) {
+        clearAuth()
+        throw new Error((json && json.message) || '登录已失效，请重新登录')
+      }
       throw new Error((json && json.message) || `请求失败 (HTTP ${resp.status})`)
     }
     return json?.data
   } catch (e) {
     entry.ms = Date.now() - start
-    // TypeError 一般是连不上后端（网络错误），给一个更友好的提示
+    // TypeError 一般是连不上后端（网络错误）
     if (e instanceof TypeError) {
       throw new Error('无法连接后端服务，请确认 Spring Boot 已在 http://localhost:9000 启动')
     }
