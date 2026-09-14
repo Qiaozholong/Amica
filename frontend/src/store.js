@@ -8,14 +8,18 @@ import { reactive, watch } from 'vue'
 const KEY = 'amica-auth'
 const saved = JSON.parse(localStorage.getItem(KEY) || '{}')
 
+// 兼容旧缓存：在修复雪花 ID 精度问题（issue 29）之前，落盘的 id 是「数字」且已经丢过精度。
+// 这种缓存必须作废，否则会把错的 userId 继续传下去 —— 直接当作未登录，要求重新登录。
+const savedOk = !!saved.token && typeof saved.id === 'string'
+
 export const state = reactive({
   // 当前登录用户（字段来自后端 AuthVo）
-  id: saved.id ?? null,
-  account: saved.account || '',
-  nickname: saved.nickname || '',
+  id: savedOk ? saved.id : null,
+  account: savedOk ? saved.account || '' : '',
+  nickname: savedOk ? saved.nickname || '' : '',
   // JWT：http.js 会把它放进 Authorization: Bearer 头
   // 后端 JwtAuthenticationFilter 对 /auth/** 之外的所有路径都要求带它
-  token: saved.token || '',
+  token: savedOk ? saved.token : '',
 })
 
 // 是否已登录
