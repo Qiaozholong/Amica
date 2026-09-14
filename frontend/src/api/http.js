@@ -1,5 +1,7 @@
 import { reactive } from 'vue'
 import { state, clearAuth } from '../store'
+// 长整数保护：雪花 ID 超出 JS 安全整数，必须在 JSON.parse 之前把长整数转成字符串（见 issue 29）
+import { quoteBigInts } from './bigint'
 
 // ============ 请求封装 ============
 // 约定：后端业务错误走「HTTP 200 + body.code」，但 JWT 过滤器拦截时是「HTTP 401 + body.code=401」。
@@ -9,6 +11,10 @@ import { state, clearAuth } from '../store'
 export const debugLogs = reactive([])
 
 let seq = 0
+
+// ---------- 长整数保护 ----------
+// 实现已抽到 ./bigint.js（quoteBigInts），原因见 issue.md 问题 29：
+// 雪花 ID 是 19 位，超出 Number.MAX_SAFE_INTEGER（16 位），JSON.parse 会四舍五入丢精度。
 
 /**
  * 统一请求入口
@@ -47,7 +53,7 @@ export async function request(method, path, body) {
     // 响应体尝试解析成 JSON；解析失败（如代理返回 HTML 错误页）就用 {raw: 原文} 兜底
     let json = null
     try {
-      json = text ? JSON.parse(text) : null
+      json = text ? JSON.parse(quoteBigInts(text)) : null
     } catch {
       json = { raw: text }
     }

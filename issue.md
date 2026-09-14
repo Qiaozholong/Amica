@@ -136,6 +136,27 @@
 - **写法原则**：归属条件**并进查询**（`WHERE id = ? AND user_id = ?`），不要"先查出来再判断"；对外统一回"不存在"，避免被当成 id 探测器来枚举。
 - **备注**：`/auth/**` 是放行路径，那条链路上**没有** `userId` 属性。机制细节见问题 23 / 26 / 27。
 
+### 29. 雪花 ID（19 位）超出 JS 安全整数 → 前端传回的 id 失真 ❓未修（前端联调阻断）
+- **位置**：实体主键用 MyBatis-Plus 雪花 ID（约 19 位，如 `2099362928699224066`），前端经 `JSON.parse` 接收后**数值被四舍五入**
+- **现象**：前端「配置 API Key」报 **「提供商不存在或无权操作」**。实测对比：
+  - 真实 id `2099362928699224066` → `code=200 success`
+  - 前端实际回传的 id → `code=500 提供商不存在或无权操作`
+  - 原因：`Number.MAX_SAFE_INTEGER` = `9007199254740991`（**16 位**），19 位 ID 超出 → IEEE 754 double 只能表示到 `...224064`，**差值 -2**
+- **影响面**：**所有"从列表/响应里取 id 再回传"的调用**都中招（配置 Key、建助手填 modelId、建会话填 assistantId…），不止 apiKey 一处
+- **建议**（治本，雪花 ID 的标准配套做法）：**后端把 Long 序列化成字符串**
+  - 全局：给 Jackson 注册 `Long/long → String` 序列化器；或逐字段 `@JsonSerialize(using = ToStringSerializer.class)`
+  - ⚠️ **前端必须同步**：去掉 id 上的 `Number(...)` 转换（`AssistantPanel` 的 `Number(form.modelId)`、`ChatPanel` 的 `Number(form.assistantId)`、以及直接用 `state.id` 的地方），让字符串**原样回传**
+  - 备选：主键策略由雪花改自增（`IdType.AUTO`，DB 的 AUTO_INCREMENT 已就绪）—— 但会动到已有数据和 JWT 里的 `userId`，风险更大
+- **备注**：Spring MVC 用的是 **Jackson 3**（`tools.jackson`），配置别写成 Jackson 2 的包名（`com.fasterxml.jackson`）。
+
+### 30. `registerProvider`「已存在」分支漏设 `providerId` → 注册第二个模型 500 ❓未修
+- **位置**：`ProviderServiceImpl.registerProvider` 的 `if (exist != null)` 分支
+- **现象**：在**已有**提供商下注册第二个模型（同 baseUrl + protocol、不同 modelId）→ `code=500 土豆炸啦`。日志铁证：
+  `Field 'provider_id' doesn't have a default value`，且 `INSERT INTO model ( id, user_id, name, model_id )` —— **provider_id 根本没进 SQL**（值为 null）
+- **根因**：`ProviderEntity` 的字段叫 **`id`**，而 `RegisteredProviderVo` 叫 **`providerId`**，`BeanUtils.copyProperties(exist, Vo)` 按**同名字段**拷贝 → **拷不过去** → `providerId` 恒为 `null` → `model.setProviderId(null)` 撞 `NOT NULL`。且抛的是 `DataIntegrityViolationException`，外面的 `catch (DuplicateKeyException)` **接不住**，直接 500。
+- **修法**：`if (exist != null)` 分支里补一行 `Vo.setProviderId(exist.getId());`
+- **备注**：老 bug（改归属之前就存在），前端联调才把它暴露出来。
+
 ---
 
 ## P3 - 后续/备忘

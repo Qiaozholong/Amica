@@ -88,10 +88,11 @@ async function doCreate() {
   msg.value = ''
   busy.value = true
   try {
-    // 注意：后端会话模块还没接 JWT（ConversationDto 仍要求 userId），所以这里仍要传
+    // 注意 1：后端会话模块还没接 JWT（ConversationDto 仍要求 userId），所以这里仍要传
+    // 注意 2：id 一律不要 Number() —— 雪花 id 超出 JS 安全整数，转数字会丢精度（见 issue 29）
     const vo = await apiCreateConversation({
       userId: state.id,
-      assistantId: Number(form.assistantId),
+      assistantId: form.assistantId,
       title: form.title || null,
       systemPrompt: form.systemPrompt || null,
     })

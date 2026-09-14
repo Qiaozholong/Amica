@@ -66,7 +66,8 @@ async function doCreate() {
   busy.value = true
   try {
     const vo = await apiCreateAssistant({
-      modelId: Number(form.modelId),
+      // 注意：不要 Number() —— 雪花 id 超出 JS 安全整数，转数字会丢精度（见 issue 29）
+      modelId: form.modelId,
       name: form.name,
       prompt: form.prompt || null,
     })
