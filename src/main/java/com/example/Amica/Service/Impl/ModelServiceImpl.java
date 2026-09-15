@@ -9,7 +9,6 @@ import com.example.Amica.Entity.ModelEntity;
 import com.example.Amica.Mapper.ModelMapper;
 import com.example.Amica.Service.ModelService;
 import com.example.Amica.Service.ProviderService;
-import com.example.Amica.Vo.ModelRegister.AModelVo;
 import com.example.Amica.Vo.ModelRegister.ModelVo;
 import com.example.Amica.Vo.ModelRegister.RegisteredProviderVo;
 import org.springframework.beans.BeanUtils;
@@ -31,37 +30,35 @@ public class ModelServiceImpl extends ServiceImpl<ModelMapper, ModelEntity> impl
 
     @Override
     @Transactional
-    public Result<AModelVo> registerModel(ModelDto dto, Long userId) {
+    public Result<ModelVo> registerModel(ModelDto dto, Long userId) {
         //查询该用户下是否已有相同 modelId, 避免重复创建(唯一键已改为 (user_id, model_id))
         ModelEntity exist = lambdaQuery()
                 .eq(ModelEntity::getUserId, userId)
                 .eq(ModelEntity::getModelId, dto.getModelId())
                 .one();
         if (exist != null) {
-            throw new BusinessException("模型已存在");
+            throw new BusinessException("模型已存在,无需重新导入");
         }
         //把得到的数据传给providerImpl,
         ProviderDto provider = new ProviderDto();
         BeanUtils.copyProperties(dto, provider);
         RegisteredProviderVo PVo = providerService.registerProvider(provider, userId);
+
         //进行创建模型
         ModelEntity model = new ModelEntity();
         BeanUtils.copyProperties(dto, model);
         model.setUserId(userId);
-        model.setProviderId(PVo.getProviderId());
+        model.setProviderId(PVo.getId());
         //规避并发异常
         try {
             save(model);
         }catch(DuplicateKeyException e) {
             throw new BusinessException("模型已存在");
         }
-
-        ModelVo MVo = new ModelVo();
-        BeanUtils.copyProperties(model, MVo);
-        AModelVo AVo = new AModelVo();
-        BeanUtils.copyProperties(MVo, AVo);
-        BeanUtils.copyProperties(PVo, AVo);
-        return Result.success(AVo);
+        //统合数据，准备返回,返回类型为modelVo
+        ModelVo result = new ModelVo();
+        BeanUtils.copyProperties(model, result);
+        return Result.success(result);
     }
     @Override
     public Result<List<ModelVo>> getAllModels(Long providerId, Long userId) {

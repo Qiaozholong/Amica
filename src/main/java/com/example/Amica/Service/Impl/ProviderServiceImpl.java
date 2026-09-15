@@ -59,7 +59,6 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
         }
         RegisteredProviderVo Vo = new RegisteredProviderVo();
         BeanUtils.copyProperties(provider, Vo);
-        Vo.setProviderId(provider.getId());
         return Vo;
     }
 

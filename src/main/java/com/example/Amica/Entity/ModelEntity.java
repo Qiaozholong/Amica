@@ -13,12 +13,15 @@ public class ModelEntity {
     private Long id;
     //所属用户
     private Long userId;
-    //模型名称
-    private String name;
     //模型提供商Id(用于绑定Provider)
     private Long providerId;
+
+    //模型名称
+    private String name;
     //模型对应编号(如:DeepSeek-V4-Pro)
     private String modelId;
+
+
     //创建时间
     private LocalDateTime createTime;
     //更新时间
