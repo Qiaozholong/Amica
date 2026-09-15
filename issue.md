@@ -94,68 +94,46 @@
   方案 A（最小改动）：把 `jwtUtil.extractUserId(token)` 移进已有的 try 块。
 - **备注**：属 `todo.md` 第 1 项（JWT）的一部分，**正式启用 JWT 前必修**。
 
-### 23. 业务接口仍从 DTO 信任 `userId`（缺所有权校验）❓未修
-- **位置**：`AssistantServiceImpl.java` L32/L43（`dto.getUserId()`）、`ConversationServiceImpl.java` L31/L44（`dto.getUserId()`）
+### 23. 业务接口仍从 DTO 信任 `userId`（缺所有权校验）❓部分完成
+- **原位置**：`AssistantServiceImpl` / `ConversationServiceImpl` 都直接用 `dto.getUserId()`
 - **现象**：`AssistantDto.userId` / `ConversationDto.userId` 由前端手传且带 `@NotNull`。当前是**多用户模型**（有 register），所以 A 只要传 B 的 `userId`，就能读/写别人的会话与助手。
-- **建议**：过滤器已把 `userId` 放进 request attribute，Controller 用 `@RequestAttribute("userId") Long userId` 取出后传给 service；同时删掉两个 DTO 里的 `userId` 字段与 `@NotNull`（那两个字段的注释本来也写着"应该是从 jwt 拿的"）。
-- **备注**：这就是"所有权校验"。⚠️ `/auth/**` 是放行路径，过滤器**不会**给它设 `userId` 属性，所以在 auth 路径上用 `@RequestAttribute` 会因属性缺失直接报错。
+- **建议**：过滤器已把 `userId` 放进 request attribute，Controller 用 `@RequestAttribute("userId") Long userId` 取出后传给 service；同时删掉 DTO 里多余的 `userId` 字段与 `@NotNull`。
+- **进度**：
+  - ✅ **user**：`AuthController` 相关端点从 token 取
+  - ✅ **assistant**：`createAssistant` / `findByUserId` 都用 `@RequestAttribute`；`AssistantDto.userId` **已删**
+  - ✅ **model / provider**：`registerModel` / `getAllModels` / `apiKey` / `getProvider` 全部带 userId；`ModelController` 4 个端点都已取 userId
+  - 🔴 **conversation**：`ConversationServiceImpl` 仍在用 `dto.getUserId()`，`ConversationDto.userId` 的 `@NotNull` 还在 → **待做**（前端目前被迫手传 userId）
+- **备注**：⚠️ `/auth/**` 是放行路径，过滤器**不会**给这些请求设 `userId` 属性，所以在 auth 路径上用 `@RequestAttribute` 会因属性缺失直接报错。
 
 ### 24. `ModelController.apikey` 缺 `@Valid` ❓暂无害
 - **位置**：`ModelController.java` L34（`@RequestBody ApiKeyDto dto`，对比同文件 L29 的 register 有 `@Valid`）
 - **说明**：`ApiKeyDto` 目前没写任何校验注解，所以暂无实际影响；一旦给它加 `@NotNull` 等注解，这里必须同步补 `@Valid`，否则注解不生效（同问题 21 那次的 `MessagesDto` 踩法）。
 
-### 26. provider / model 的归属：决定走**方案 B**（每用户独立，各自加 owner 列）❓决策已定，未实施
-- **背景**：目标是"各模块都绑定用户"。`assistant` / `conversation` **已有 `user_id`**（→ 问题 23，零 DDL 即可完成绑定）；缺的是 `provider` / `model`。
-- **已否掉的方案**：靠 `provider ← model ← assistant → user` 这条链**间接**推归属。**不行**，三个原因：
-  1. **方向反了**：链能回答的只是"**谁在用**这个 provider"，而授权要的是"**谁拥有**"它；没人引用时链直接断。
-  2. **无 assistant 时无从归属**：真实流程是「注册 provider → **配 API Key** → 建 assistant」，而**配 Key 那一步就要鉴权**，那时还没有任何 assistant。
-  3. **归属歧义**：`model` 现在全局唯一（`uk_model_id`），A、B 的 assistant 引用的是**同一行**；A 删掉自己的 assistant，归属就凭空消失（多对多特征，间接绑定表达不了）。
-- **决定**：走**方案 B** —— `provider` / `model` 归用户所有，各带**直接的 owner 列**。
-- **实施清单**（一起做，否则会半途不一致）：
-  1. `provider` 加 `user_id BIGINT NOT NULL`；唯一键 `uk_provider (protocol, base_url)` → **`(user_id, protocol, base_url)`**（不改的话，B 注册与 A 相同的端点会被"已存在"顶掉）
-  2. `model` 加 `user_id BIGINT NOT NULL`；唯一键 `uk_model_id (model_id)` → **`(user_id, model_id)`**（**合并问题 9**）
-  3. `ProviderServiceImpl.registerProvider` 的查重（现按 `baseUrl + protocol`）带上 `user_id`
-  4. `ModelServiceImpl.registerModel` 的查重（现按 `modelId`）带上 `user_id`
-  5. 所有 create/register 的 `userId` 改从 token 取（= 问题 23）
-  6. ⚠️ **跨模块归属校验**：建 assistant 时校验「引用的 `model` **属于同一 userId**」；建 conversation 时校验「引用的 `assistant` 属于同一 userId」。现在只判**存在**不判**归属**（`AssistantServiceImpl:38` 就是 `existModel == null` 一判了事）
-- **备注**：`messages` **不加** `user_id` —— 它靠 `conversation_id` 间接归属，冗余加列只会多维护一份一致性。
-
-### 27. `ProviderServiceImpl.apiKey()` 只判存在不判归属 → 任意用户可覆盖他人 API Key ❓未修（安全）
-- **位置**：`ProviderServiceImpl.java` L72-78（`getById(dto.getProviderId())` 后只判 `== null`，随即 `setApiKey` + `updateById`）
-- **现象**：只要登录（拿到合法 token），传任意 `providerId` 就能**覆盖别人的 API Key**。
-- **建议**：与问题 26 同源（没有归属列），但**即使暂不做方案 B 也该处理**：
-  - 走方案 B 后 → `apiKey()` 改为 `lambdaQuery().eq(id).eq(user_id, 当前userId).one()`，查不到就抛「提供商不存在或无权操作」；
-  - 若仍把 provider 当全局配置 → 至少在代码里注明"这是单用户前提下的设计"，别当漏洞放着不管。
-
 ### 28. 越权访问（对象级授权 / BOLA）：随 JWT 按模块逐步接入 ❓进行中
 - **性质**：JWT 只解决了**认证**（你是谁），没解决**对象级授权**（这条数据是不是你的）。后者缺失就是业内所说的 IDOR / BOLA（OWASP API 安全第一位），也就是"改个 id 就能读别人数据"那类事故的根因。
-- **计划**：随 JWT **逐模块接入**。已完成 user；进行中 assistant；conversation / model / provider / chat 待做。
+- **进度**：✅ user、assistant（读写两侧）、model（读写两侧）、provider（`getProvider` / `apiKey` 归属校验）；
+  🔴 **待做：conversation**（列表仍是全量返回 + `create` 用 `dto.getUserId()`）、**chat**（`send` / `get` 无会话归属校验 —— 本条最严重，`ChatServiceImpl` 只按 `conversationId` 取会话）。
 - **每个模块只检查两件事**：
   1. **读**：列表查询与按 id 的查询，是否带了**归属条件**（当前多处是"全量返回"）
   2. **写**：创建是否用 token 的 `userId` 落地归属；**引用其它模块时**（如 assistant → model）是否校验**归属相同**，而不只是"该记录存在"
 - **写法原则**：归属条件**并进查询**（`WHERE id = ? AND user_id = ?`），不要"先查出来再判断"；对外统一回"不存在"，避免被当成 id 探测器来枚举。
 - **备注**：`/auth/**` 是放行路径，那条链路上**没有** `userId` 属性。机制细节见问题 23 / 26 / 27。
 
-### 29. 雪花 ID（19 位）超出 JS 安全整数 → 前端传回的 id 失真 ❓未修（前端联调阻断）
+### 29. 雪花 ID（19 位）超出 JS 安全整数 → 前端传回的 id 失真 ❓前端已绕开，后端治本待做
+- **现状**：**前端已绕开** —— 新增 `frontend/src/api/bigint.js` 的 `quoteBigInts()`，在 `JSON.parse` **之前**把值位置上的 ≥16 位整数转成字符串（逐字符扫描，不误伤字符串内容）；`http.js` 统一使用；`AssistantPanel` / `ChatPanel` 去掉了 id 上的 `Number()`；`store.js` 会作废旧缓存里的数字型 id 强制重新登录。
+  - 实测闭环：拉 provider 列表拿到的 id 是字符串且**精确**，原样发回 `POST /model/apikey` → `code=200`；
+  - 对比：朴素 `JSON.parse` 得到 `2099362928699224000`（**错**），`quoteBigInts` 之后是 `2099362928699224066`（**对**）。
+  - ⚠️ **在那之前，任何新写的前端代码取 id 都必须走 `quoteBigInts` 的解析路径**，否则会重新踩坑。
+- **后端治本方案（仍未做）**：把 `Long` 序列化成字符串
+  - 全局：给 Jackson 注册 `Long/long → String` 序列化器；或逐字段 `@JsonSerialize(using = ToStringSerializer.class)`
+  - 备选：主键策略由雪花改自增（`IdType.AUTO`，DB 的 AUTO_INCREMENT 已就绪）—— 但会动到已有数据和 JWT 里的 `userId`，风险更大
 - **位置**：实体主键用 MyBatis-Plus 雪花 ID（约 19 位，如 `2099362928699224066`），前端经 `JSON.parse` 接收后**数值被四舍五入**
 - **现象**：前端「配置 API Key」报 **「提供商不存在或无权操作」**。实测对比：
   - 真实 id `2099362928699224066` → `code=200 success`
   - 前端实际回传的 id → `code=500 提供商不存在或无权操作`
   - 原因：`Number.MAX_SAFE_INTEGER` = `9007199254740991`（**16 位**），19 位 ID 超出 → IEEE 754 double 只能表示到 `...224064`，**差值 -2**
 - **影响面**：**所有"从列表/响应里取 id 再回传"的调用**都中招（配置 Key、建助手填 modelId、建会话填 assistantId…），不止 apiKey 一处
-- **建议**（治本，雪花 ID 的标准配套做法）：**后端把 Long 序列化成字符串**
-  - 全局：给 Jackson 注册 `Long/long → String` 序列化器；或逐字段 `@JsonSerialize(using = ToStringSerializer.class)`
-  - ⚠️ **前端必须同步**：去掉 id 上的 `Number(...)` 转换（`AssistantPanel` 的 `Number(form.modelId)`、`ChatPanel` 的 `Number(form.assistantId)`、以及直接用 `state.id` 的地方），让字符串**原样回传**
-  - 备选：主键策略由雪花改自增（`IdType.AUTO`，DB 的 AUTO_INCREMENT 已就绪）—— 但会动到已有数据和 JWT 里的 `userId`，风险更大
 - **备注**：Spring MVC 用的是 **Jackson 3**（`tools.jackson`），配置别写成 Jackson 2 的包名（`com.fasterxml.jackson`）。
-
-### 30. `registerProvider`「已存在」分支漏设 `providerId` → 注册第二个模型 500 ❓未修
-- **位置**：`ProviderServiceImpl.registerProvider` 的 `if (exist != null)` 分支
-- **现象**：在**已有**提供商下注册第二个模型（同 baseUrl + protocol、不同 modelId）→ `code=500 土豆炸啦`。日志铁证：
-  `Field 'provider_id' doesn't have a default value`，且 `INSERT INTO model ( id, user_id, name, model_id )` —— **provider_id 根本没进 SQL**（值为 null）
-- **根因**：`ProviderEntity` 的字段叫 **`id`**，而 `RegisteredProviderVo` 叫 **`providerId`**，`BeanUtils.copyProperties(exist, Vo)` 按**同名字段**拷贝 → **拷不过去** → `providerId` 恒为 `null` → `model.setProviderId(null)` 撞 `NOT NULL`。且抛的是 `DataIntegrityViolationException`，外面的 `catch (DuplicateKeyException)` **接不住**，直接 500。
-- **修法**：`if (exist != null)` 分支里补一行 `Vo.setProviderId(exist.getId());`
-- **备注**：老 bug（改归属之前就存在），前端联调才把它暴露出来。
 
 ---
 
@@ -174,22 +152,31 @@
 
 ### 25. 授权（角色/权限）模块：确认**不做** ❓备忘（结论）
 - **结论**：个人助手只有**一种主体**（所有者），没有角色/权限矩阵可分配 → **不引入** RBAC / `@PreAuthorize` / 角色表。
-- **需要的是另外两层**：① 认证（已完成，JWT）；② **所有权校验**（见问题 23，未做）。授权层留空。
+- **需要的是另外两层**：① 认证（已完成，JWT）；② **所有权校验**（见问题 23 / 28 —— user / assistant / model / provider 已完成，conversation / chat 待做）。授权层留空。
 - **何时再回来看**：真出现第二种角色（如管理员、只读访客）时再设计；现在做就是空壳。
 
 ---
 
-## 前端待办（后端已就绪，前端待改）
+## 前端状态（frontend/）
 
-| 项 | 前端现状 | 待改 |
-| --- | --- | --- |
-| 列表接口 | 资源缓存在 localStorage | 改为服务端拉取：`/model/getallprovider`、`/model/getAllModel/{id}`、`/assistant/getAllAssistant`、`/conversation/getAllConversation`；消息用 `/chat/{id}/get` |
-| 过滤器强制 Bearer | 请求**未带** `Authorization` 头 → 非 `/auth/**` 接口一律 401 | 登录/注册后存 `AuthVo.token`，在 `http.js` 统一加 `Authorization: Bearer <token>` |
-| `login` 已返回 `id`/`token` | AuthPanel 仍靠 `/auth/get` 按账号匹配 | 直接用登录响应里的 `id`，删掉匹配逻辑 |
-| `model/register` 已返回实体 id | ModelPanel 仍是手填框 | 改为取响应/模型列表里的 `id` |
-| options 已生效 | ChatPanel 提示"后端当前未生效" | 删掉该提示 |
-| `maxtokens` 默认 1024 偏小 | 手动填 4096+ 规避 | 后端待改（见问题 21） |
-| `maxtokens` 命名 | ChatPanel 严格发 `maxtokens` | 后端待改（见问题 3） |
-| 空串覆盖判定 | 创建会话统一传 `null` | 后端待改（见问题 2） |
+**本轮已完成**（前端整体重写，与服务端对齐）：
+- 资源全部改为**服务端拉取**；localStorage 只保留登录态（key：`amica-auth`）
+- `http.js` 统一带 `Authorization: Bearer`，遇 401 自动清登录态并提示重新登录
+- 登录 / 注册直接用 `AuthVo{id, account, nickname, token}`；**删掉了** `/auth/get` 按账号匹配的临时方案
+- 模型注册改用响应里的 model 实体 id，不再手填；助手 / 会话列表都走服务端
+- **雪花 ID 保护**（见问题 29）：`api/bigint.js` 的 `quoteBigInts()`；**所有 id 一律不做 `Number()` 转换**
+- 发消息后重新拉取消息列表，保证界面与库一致
+- `maxtokens` 默认填 4096（规避问题 21）
 
-> 后端修完任何一条，记得同步 `frontend/` 对应提示，避免界面误导。
+**仍待前端同步的后端改动**：
+
+| 后端问题 | 前端待改 |
+| --- | --- |
+| 问题 2 空串覆盖判定 | 后端统一判定后，同步界面提示 |
+| 问题 3 `maxtokens` 改名 `maxTokens` | 后端改名后，同步 `ChatPanel` 与 `frontend/README.md` |
+| 问题 21 `maxTokens` 默认值 1024 偏小 | 后端改默认值后，前端可去掉"默认 4096"这个补丁 |
+| 问题 13 `stream=true` | 后端实现 SSE 之前，保持"会失败"的提示 |
+| 问题 23 / 28 conversation 未接 JWT | 后端把 `ConversationDto.userId` 去掉后，前端同步删掉该字段 |
+
+> ⚠️ **`frontend/README.md` 还是旧版** —— 描述的是"无列表接口 / localStorage 缓存 / 手填 model id"那一套，
+> 与现在的实现已经不符，**待同步**。
