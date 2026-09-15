@@ -15,6 +15,7 @@ import java.util.List;
 @RequestMapping("/assistant")
 public class AssistantController {
     private final AssistantService assistantService;
+
     public AssistantController(AssistantService assistantService) {
         this.assistantService = assistantService;
     }
@@ -23,10 +24,13 @@ public class AssistantController {
     public Result<AssistantVo> createAssistant(@Valid @RequestBody AssistantDto dto,
                                                @RequestAttribute("userId") Long userId
     ) {
-        return assistantService.createAssistant(dto,userId);
+        return assistantService.createAssistant(dto, userId);
     }
+
     @GetMapping("/getAllAssistant")
-    public Result<List<AssistantEntity>> getAllAssistant() {
-        return assistantService.findAllAssistant();
+    public Result<List<AssistantVo>> getAllAssistant(
+            @RequestAttribute("userId") Long userId
+    ) {
+        return assistantService.findByUserId(userId);
     }
 }

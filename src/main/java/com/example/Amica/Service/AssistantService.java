@@ -9,7 +9,8 @@ import com.example.Amica.Vo.AssistantVo;
 import java.util.List;
 
 public interface AssistantService extends IService<AssistantEntity> {
+    //用于创建新的助手
     Result<AssistantVo> createAssistant(AssistantDto dto,Long userId);
-    //助手信息查询返回
-    Result<List<AssistantEntity>> findAllAssistant();
+    //用于使用userId快捷查询对应对应用户名下助手清单
+    Result<List<AssistantVo>> findByUserId(Long userId);
 }

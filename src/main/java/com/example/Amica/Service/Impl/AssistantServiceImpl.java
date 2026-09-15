@@ -29,12 +29,12 @@ public class AssistantServiceImpl extends ServiceImpl<AssistantMapper, Assistant
 
     @Override
     public Result<AssistantVo> createAssistant(AssistantDto dto, Long userId) {
+        //根据传回的userId查询对应用户，赋值给existUser用于查询数据库中是否有对应对象
         UserEntity existUser = userService.lambdaQuery().eq(UserEntity::getId, userId).one();
-        //两个if检查外键
         if (existUser == null) {
             throw new BusinessException(401,"登录状态已失效，请重新登录");
         }
-        //归属校验：只能引用自己的 model(不再只判"存在")
+        //双重索引条件锁定对应model
         ModelEntity existModel = modelService.lambdaQuery()
                 .eq(ModelEntity::getId, dto.getModelId())
                 .eq(ModelEntity::getUserId, userId)
@@ -52,15 +52,19 @@ public class AssistantServiceImpl extends ServiceImpl<AssistantMapper, Assistant
         //中间参数调整所需参数
         AssistantVo vo = new AssistantVo();
         BeanUtils.copyProperties(assistantEntity, vo);
-        vo.setAssistantId(assistantEntity.getId());
-        vo.setUserName(existUser.getNickname());
-        vo.setModelName(existModel.getName());
         return Result.success(vo);
     }
 
     @Override
-    public Result<List<AssistantEntity>> findAllAssistant() {
-        List<AssistantEntity> result = list();
+    public Result<List<AssistantVo>> findByUserId(Long userId) {
+        List<AssistantEntity> entities = lambdaQuery()
+                .eq(AssistantEntity::getUserId,userId)
+                .list();
+        List<AssistantVo> result = entities.stream().map(e->{
+            AssistantVo vo = new AssistantVo();
+            BeanUtils.copyProperties(e,vo);
+            return vo;
+        }).toList();
         return Result.success(result);
     }
 }

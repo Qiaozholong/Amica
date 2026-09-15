@@ -8,6 +8,7 @@ import lombok.Data;
 public class AssistantDto {
 
     //同样从前端获取，前端应该设计成获取二层表单，首成为provider选择，其次是model选择，选择后会填写模型对应Id，但现在没有前端，只好手传了
+    //应该可为空？或者自带默认项
     @NotNull(message = "为必填项")
     private Long modelId;
     //助手名称
