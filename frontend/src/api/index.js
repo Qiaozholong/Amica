@@ -22,9 +22,9 @@ export const apiGetProviders = () => get('/model/getallprovider')
 export const apiGetModels = (providerId) => get(`/model/getAllModel/${providerId}`)
 
 // ---------- 助手 ----------
-// 返回 AssistantVo{ assistantId, userName, modelName, name, prompt }
+// 创建助手，返回 AssistantVo{ id, userId, modelId, name, prompt }
 export const apiCreateAssistant = (data) => post('/assistant/create', data)
-// 助手列表 -> AssistantEntity{ id, userId, modelId, name, prompt, ... }（注意是 id 不是 assistantId）
+// 助手列表 -> List<AssistantVo>，字段与 create 完全一致（create / list 已统一）
 export const apiGetAssistants = () => get('/assistant/getAllAssistant')
 
 // ---------- 会话 / 消息 ----------

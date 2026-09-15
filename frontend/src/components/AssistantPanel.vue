@@ -15,7 +15,7 @@ const busy = ref(false)
 
 // 展平后的可选模型：{ id, name, modelId, providerLabel }
 const modelOptions = ref([])
-// 助手列表（服务端 AssistantEntity：注意字段是 id，不是 assistantId）
+// 助手列表（服务端返回 AssistantVo：{ id, userId, modelId, name, prompt }）
 const assistants = ref([])
 
 async function loadModelOptions() {
@@ -71,7 +71,7 @@ async function doCreate() {
       name: form.name,
       prompt: form.prompt || null,
     })
-    msg.value = `助手创建成功。assistantId=${vo.assistantId}（model=${vo.modelName}）`
+    msg.value = `助手创建成功。id=${vo.id}（modelId=${vo.modelId}）`
     form.name = ''
     form.prompt = ''
     await loadAssistants()
