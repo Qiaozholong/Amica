@@ -28,10 +28,12 @@ export const apiCreateAssistant = (data) => post('/assistant/create', data)
 export const apiGetAssistants = () => get('/assistant/getAllAssistant')
 
 // ---------- 会话 / 消息 ----------
-// 返回 ConversationVo{ id, title, status }
+// 建会话，返回 ConversationVo{ id, userId, assistantId, systemPrompt, title, status }
+// 注意：ConversationDto 里已经没有 userId 了（后端从 token 取）
 export const apiCreateConversation = (data) => post('/conversation/create', data)
-// 会话列表 -> ConversationEntity{ id, userId, assistantId, title, systemPrompt, ... }
-export const apiGetConversations = () => get('/conversation/getAllConversation')
+// 会话列表 -> ConversationEntity[]；路径**带 assistantId**（查的是"某个助手下的会话"）
+export const apiGetConversations = (assistantId) =>
+  get(`/conversation/${assistantId}/getAllConversation`)
 // 发送消息，返回 ChatResponse{ content, model, inputTokens, outputtokens }
 export const apiSendMessage = (conversationId, data) =>
   post(`/chat/${conversationId}/send`, data)
