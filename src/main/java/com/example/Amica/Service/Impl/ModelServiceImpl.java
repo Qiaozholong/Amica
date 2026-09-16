@@ -62,15 +62,18 @@ public class ModelServiceImpl extends ServiceImpl<ModelMapper, ModelEntity> impl
     }
     @Override
     public Result<List<ModelVo>> getAllModels(Long providerId, Long userId) {
+        //双层索引锁定对应对象
         List<ModelEntity> entitys = lambdaQuery()
                 .eq(ModelEntity::getProviderId, providerId)
                 .eq(ModelEntity::getUserId, userId)
                 .list();
+
         List<ModelVo> result = entitys.stream().map(e->{
             ModelVo vo = new ModelVo();
             BeanUtils.copyProperties(e, vo);
             return vo;
         }).toList();
+
         return Result.success(result);
     }
 }

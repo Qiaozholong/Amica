@@ -2,10 +2,8 @@ package com.example.Amica.Controller;
 
 import com.example.Amica.Common.Result;
 import com.example.Amica.Dto.AssistantDto;
-import com.example.Amica.Entity.AssistantEntity;
 import com.example.Amica.Service.AssistantService;
 import com.example.Amica.Vo.AssistantVo;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 

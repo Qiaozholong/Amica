@@ -87,6 +87,7 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
         return Result.success(Vo);
     }
 
+    //暂时没想到怎么用
     @Override
     public String GetApiKey(Long providerId) {
         ProviderEntity exist = getById(providerId);
@@ -95,6 +96,7 @@ public class ProviderServiceImpl extends ServiceImpl<ProviderMapper, ProviderEnt
         }
         return apiKeyEncryptor.decrypt(exist.getApiKey());
     }
+
     @Override
     public Result<List<ProviderVo>> getProvider(Long userId) {
         List<ProviderEntity> entities = lambdaQuery().eq(ProviderEntity::getUserId, userId).list();

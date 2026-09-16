@@ -5,9 +5,6 @@ import lombok.Data;
 
 @Data
 public class ConversationDto {
-    //话题从属UserId,同时也应该是从jwt拿的，但我没写哈哈
-    @NotNull(message = "不可为空")
-    private Long userId;
     //话题从属AssistantId
     @NotNull(message = "不可为空")
     private Long assistantId;

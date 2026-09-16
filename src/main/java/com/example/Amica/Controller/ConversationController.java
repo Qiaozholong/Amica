@@ -17,12 +17,19 @@ public class ConversationController {
     public ConversationController(ConversationService conversationService) {
         this.conversationService = conversationService;
     }
+
     @PostMapping("/create")
-    public Result<ConversationVo> create(@Valid @RequestBody ConversationDto dto){
-        return conversationService.create(dto);
+    public Result<ConversationVo> create(
+            @Valid @RequestBody ConversationDto dto,
+            @RequestAttribute("userId")Long userId){
+        return conversationService.create(dto,userId);
     }
-    @GetMapping("/getAllConversation")
-    public Result<List<ConversationEntity>> getAllConversation(){
-        return conversationService.findAllConversation();
+
+    @GetMapping("/{assistantId}/getAllConversation")
+    public Result<List<ConversationEntity>> getAllConversation(
+            @PathVariable Long assistantId,
+            @RequestAttribute("userId") Long userId
+    ){
+        return conversationService.findAllConversation(assistantId,userId);
     }
 }

@@ -9,7 +9,8 @@ import com.example.Amica.Vo.ConversationVo;
 import java.util.List;
 
 public interface ConversationService extends IService<ConversationEntity> {
-    Result<ConversationVo> create(ConversationDto dto);
-    //会话查询返回
-    Result<List<ConversationEntity>> findAllConversation();
+    //用户创建话题
+    Result<ConversationVo> create(ConversationDto dto,Long userId);
+    //用户名下会话查询返回
+    Result<List<ConversationEntity>> findAllConversation(Long assistantId,Long userId);
 }
