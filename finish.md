@@ -67,3 +67,32 @@
 - **实际修法**（比"补一句 setter"更优）：**把 `RegisteredProviderVo.providerId` 改名为 `id`**，让字段名与实体对齐 → `copyProperties` 两个分支都自动带出 id，**无需任何手写 setter**。
 - **实测**：同一 provider 下再注册 `deepseek-v4-pro` → `code=200`，返回的 `providerId` 非空；该 provider 下确认有 2 个模型。
 - **模式总结**：与 11 / 12 以及 assistant 的 VO 重构是**同一个模式** —— **VO 字段名与实体对齐，`BeanUtils` 就全自动**。建议以后凡是用 `copyProperties` 的地方，先检查 VO 字段名有没有和实体对上。
+
+### 23. 业务接口从 DTO 信任 `userId` ✅已修正
+- **原现象**：`AssistantDto.userId` / `ConversationDto.userId` 由前端手传且带 `@NotNull` —— 多用户模型下，A 传 B 的 `userId` 就能读/写别人的数据。
+- **修法**：`JwtAuthenticationFilter` 验签后把 `userId` 写进 request attribute → 各 Controller 用 `@RequestAttribute("userId")` 取出传给 service；同时**删掉 DTO 里的 `userId` 字段**。
+- **核对**：全项目 `grep dto.getUserId()` **无匹配**；所有 DTO 里**已无 `private Long userId`**。
+- **覆盖范围**：
+
+  | 模块 | 位置 |
+  | --- | --- |
+  | user | `AuthController` 相关端点 |
+  | assistant | `createAssistant` / `findByUserId` |
+  | model / provider | `registerModel` / `getAllModels` / `apiKey` / `getProvider` |
+  | conversation | `create` / `findAllConversation` |
+
+- **备注**：⚠️ `/auth/**` 是放行路径，过滤器**不会**给它设 `userId` 属性 —— 所以 auth 路径上不能用 `@RequestAttribute`（会因属性缺失直接报错）。
+
+### 2. 会话「已覆盖」判定前后不一致 ✅已修正
+- **原现象**：创建会话时用 `systemPrompt == null` 判「已覆盖」，而聊天链路用 `isBlank()` 决定是否回退到助手 prompt
+  → 前端传空字符串 `""`（表单空值的常见形态）时，**创建说"已覆盖"、聊天却实际回退了**，两边结论不一致。
+- **修法**：创建侧统一改成 `sp == null || sp.isBlank()`，与聊天链路口径一致。
+- **踩坑记录**：改的时候取值写错了 —— `String sp = dto.getTitle();`（变量名叫 `sp`，取的却是 `title`），
+  导致"明明填了 systemPrompt 也报未覆盖"。已改回 `dto.getSystemPrompt()`。
+- **实测（三个用例）**：
+
+  | 用例 | title | systemPrompt | status |
+  | --- | --- | --- | --- |
+  | 1 | 留空 | 留空 | 未覆盖 ✅ |
+  | 2 | 留空 | **有值** | **已覆盖** ✅（修复前这里错报"未覆盖"） |
+  | 3 | 有值 | `"   "` 空白串 | 未覆盖 ✅（`isBlank()` 生效） |

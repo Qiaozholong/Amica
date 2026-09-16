@@ -118,7 +118,7 @@ user
 | POST | `/assistant/create` | 创建助手 |
 | GET | `/assistant/getAllAssistant` | 助手列表 |
 | POST | `/conversation/create` | 创建会话 |
-| GET | `/conversation/getAllConversation` | 会话列表 |
+| GET | `/conversation/{assistantId}/getAllConversation` | 某助手下的会话列表 |
 | POST | `/chat/{conversationId}/send` | 发送消息 |
 | GET | `/chat/{conversationId}/get` | 会话消息列表 |
 

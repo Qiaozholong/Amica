@@ -9,11 +9,6 @@
 
 ## P1 - 逻辑/行为异常
 
-### 2. 会话「已覆盖」判定前后不一致 ❓
-- **位置**：`ConversationServiceImpl.java` L52（创建时 `systemPrompt == null` → "已覆盖"）对比 `ChatServiceImpl.java` L63（聊天链路 `isBlank()` 才回退）
-- **现象**：前端传空字符串 `""` 时，创建返回"已覆盖"，聊天却实际回退到了助手 prompt。前端易踩（表单空值常是 `""` 而非 `null`）。
-- **建议**：统一用 `isBlank()`（多余空格也视为未覆盖），或统一 `null` 判。前端同步注意。
-
 ### 3. `maxtokens` 的哨兵值用法和命名 ❓
 - **位置**：`MessagesDto.java` L10（`int maxtokens`）、`ChatServiceImpl.java` L46（`!= 0 ? x : 1024`）
 - **现象**：① 无法显式请求 0 token；② 字段名 `maxtokens` 非驼峰，前端拼成 `maxTokens` 会被 Jackson 静默忽略（默认配置不报错），查错半天。
@@ -55,10 +50,11 @@
 - **现象**：不支持的协议抛 `BusinessException(401, "xxx")`，401 语义是"未授权"，且 message 只给协议名，像"401 openai2"这种输出。
 - **建议**：`400` 或 `500` + `"不支持的协议: xxx"`。
 
-### 9. `model_id` 全表唯一 + `provider.name` 被固定为 protocol ❓
-- **位置**：`sql/init.sql` L39（`UNIQUE KEY uk_model_id`）、`ProviderServiceImpl.java` L44（`provider.setName(dto.getProtocol())`）
-- **现象**：① 不同提供商想注册同名模型（如两个端点都有 `deepseek-chat`）会被"模型已存在"拦下；② 提供商显示名永远等于协议名，`name` 字段没有实际意义。
-- **建议**：唯一键改为 `(provider_id, model_id)`；提供商名由 `ModelDto` 透传或单独接口维护。
+### 9. `provider.name` 被固定为 protocol（唯一键那半已完成）❓半完成
+- **已完成的一半**：唯一键 `UNIQUE KEY uk_model_id (model_id)` → **`uk_model_user (user_id, model_id)`**
+  （随问题 26 一起做的，见 `finish.md`）→ **不同用户之间已经可以注册同名模型** ✅
+- **剩余的一半**：`ProviderServiceImpl` 里 `provider.setName(dto.getProtocol())` —— 提供商显示名永远等于协议名，`name` 字段没有实际意义
+- **建议**：提供商名由 `ModelDto` 透传一个 name 字段，或单独接口维护。**属产品决策，不急。**
 
 ### 13. `stream=true` 会解析失败（做了 options 后必踩）❓
 - **位置**：`OpenAiProvider.java` L79-86（parse 按普通 JSON 解析），L75 却会把 `stream` 写进请求体
@@ -94,25 +90,15 @@
   方案 A（最小改动）：把 `jwtUtil.extractUserId(token)` 移进已有的 try 块。
 - **备注**：属 `todo.md` 第 1 项（JWT）的一部分，**正式启用 JWT 前必修**。
 
-### 23. 业务接口仍从 DTO 信任 `userId`（缺所有权校验）❓部分完成
-- **原位置**：`AssistantServiceImpl` / `ConversationServiceImpl` 都直接用 `dto.getUserId()`
-- **现象**：`AssistantDto.userId` / `ConversationDto.userId` 由前端手传且带 `@NotNull`。当前是**多用户模型**（有 register），所以 A 只要传 B 的 `userId`，就能读/写别人的会话与助手。
-- **建议**：过滤器已把 `userId` 放进 request attribute，Controller 用 `@RequestAttribute("userId") Long userId` 取出后传给 service；同时删掉 DTO 里多余的 `userId` 字段与 `@NotNull`。
-- **进度**：
-  - ✅ **user**：`AuthController` 相关端点从 token 取
-  - ✅ **assistant**：`createAssistant` / `findByUserId` 都用 `@RequestAttribute`；`AssistantDto.userId` **已删**
-  - ✅ **model / provider**：`registerModel` / `getAllModels` / `apiKey` / `getProvider` 全部带 userId；`ModelController` 4 个端点都已取 userId
-  - 🔴 **conversation**：`ConversationServiceImpl` 仍在用 `dto.getUserId()`，`ConversationDto.userId` 的 `@NotNull` 还在 → **待做**（前端目前被迫手传 userId）
-- **备注**：⚠️ `/auth/**` 是放行路径，过滤器**不会**给这些请求设 `userId` 属性，所以在 auth 路径上用 `@RequestAttribute` 会因属性缺失直接报错。
-
 ### 24. `ModelController.apikey` 缺 `@Valid` ❓暂无害
 - **位置**：`ModelController.java` L34（`@RequestBody ApiKeyDto dto`，对比同文件 L29 的 register 有 `@Valid`）
 - **说明**：`ApiKeyDto` 目前没写任何校验注解，所以暂无实际影响；一旦给它加 `@NotNull` 等注解，这里必须同步补 `@Valid`，否则注解不生效（同问题 21 那次的 `MessagesDto` 踩法）。
 
 ### 28. 越权访问（对象级授权 / BOLA）：随 JWT 按模块逐步接入 ❓进行中
 - **性质**：JWT 只解决了**认证**（你是谁），没解决**对象级授权**（这条数据是不是你的）。后者缺失就是业内所说的 IDOR / BOLA（OWASP API 安全第一位），也就是"改个 id 就能读别人数据"那类事故的根因。
-- **进度**：✅ user、assistant（读写两侧）、model（读写两侧）、provider（`getProvider` / `apiKey` 归属校验）；
-  🔴 **待做：conversation**（列表仍是全量返回 + `create` 用 `dto.getUserId()`）、**chat**（`send` / `get` 无会话归属校验 —— 本条最严重，`ChatServiceImpl` 只按 `conversationId` 取会话）。
+- **进度**：✅ user、assistant（读写两侧）、model（读写两侧）、provider（`getProvider` / `apiKey` 归属校验）、
+  **conversation**（`create` 校验 assistant 归属；`findAllConversation` 按 `userId + assistantId` 过滤 —— 实测 B 用 A 的 assistantId 查返回 **0 条**）；
+  🔴 **只剩 chat**：`POST /chat/{id}/send` 与 `GET /chat/{id}/get` **无会话归属校验**（`ChatServiceImpl` 只按 `conversationId` 取会话 → 能读到别人的历史、往别人会话里写消息、烧别人的 API Key 额度）—— **本条最严重，优先做**。
 - **每个模块只检查两件事**：
   1. **读**：列表查询与按 id 的查询，是否带了**归属条件**（当前多处是"全量返回"）
   2. **写**：创建是否用 token 的 `userId` 落地归属；**引用其它模块时**（如 assistant → model）是否校验**归属相同**，而不只是"该记录存在"
@@ -143,8 +129,12 @@
 - **位置**：`ProviderImpl/AnthropicProvider.java`（空类）、`ProviderFactory.java` L20（已注释）
 - **说明**：目前只有 openai 协议可用；做 Anthropic 时注意其请求体格式不同（x-api-key 头、system 独立字段、max_tokens 必填）。
 
-### 17. HTTP 恒 200 + body.code 约定 ❓
-- **说明**：目前所有响应 HTTP 200，业务成败看 `body.code`。这是可以接受的约定，但前端必须统一判断 body.code（`frontend/src/api/http.js` 已按此实现）。确认团队沿用，不再各自混用状态码。
+### 17. HTTP 恒 200 + body.code 约定 ❓（约定已被 401 打破，口径需明确）
+- **现状**：业务响应仍是 HTTP 200 + `body.code`；但 **JWT 过滤器对未认证请求直接返回 HTTP 401**（`JwtAuthenticationFilter.send401`，已实测）→ **"恒 200"已经不再成立**。
+- **前端已适配**：`frontend/src/api/http.js` 同时判断 `body.code` 与 HTTP 状态码，遇 401 会清登录态并提示重新登录。
+- **建议把它写成明确规则**（写下来就不算"混用"，而是有意的分层）：
+  - **过滤器 / 拦截器层**（请求进不到 Controller）：用 HTTP 状态码（401 / 403）
+  - **业务层**（Controller / Service）：HTTP 200 + `body.code`
 
 ### 18. `messages` 表 role 类型与实际使用不一致 ❓
 - **位置**：`sql/init.sql` L73（注释支持 user/assistant/system/tool）、`ChatServiceImpl.java` L110-115（`toRole` 只认 user/assistant，其余抛 RuntimeException）
@@ -172,11 +162,9 @@
 
 | 后端问题 | 前端待改 |
 | --- | --- |
-| 问题 2 空串覆盖判定 | 后端统一判定后，同步界面提示 |
 | 问题 3 `maxtokens` 改名 `maxTokens` | 后端改名后，同步 `ChatPanel` 与 `frontend/README.md` |
 | 问题 21 `maxTokens` 默认值 1024 偏小 | 后端改默认值后，前端可去掉"默认 4096"这个补丁 |
 | 问题 13 `stream=true` | 后端实现 SSE 之前，保持"会失败"的提示 |
-| 问题 23 / 28 conversation 未接 JWT | 后端把 `ConversationDto.userId` 去掉后，前端同步删掉该字段 |
 
-> ⚠️ **`frontend/README.md` 还是旧版** —— 描述的是"无列表接口 / localStorage 缓存 / 手填 model id"那一套，
-> 与现在的实现已经不符，**待同步**。
+> ✅ `frontend/README.md` 已同步重写（登录态与鉴权、雪花 ID 保护、新接口表、已知限制）。
+> ✅ conversation 已接 JWT：前端不再传 `userId`；会话列表改为**按助手**查（`ChatPanel` 顶部先选助手）。
