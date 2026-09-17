@@ -16,8 +16,8 @@
 | 功能 | 状态 | 说明 |
 | --- | --- | --- |
 | 用户注册 / 登录 | 已实现 | BCrypt 密码加密；**两个入口都签发 JWT** |
-| JWT 鉴权 | 已实现 | `JwtUtil` + `JwtAuthenticationFilter`；`/auth/**` 放行，其余路径需 `Bearer` token |
-| 数据归属（`user_id`） | 部分实现 | user / assistant / model / provider 已按用户隔离；**conversation / chat 待做**（见 `issue.md` 23 / 28） |
+| JWT 鉴权 | 已实现 | `JwtUtil` + `JwtAuthenticationFilter`；`/auth/**` 放行，其余路径需 `Bearer` token（⚠️ 白名单是前缀匹配，`/auth/get` 也一并放行，待收口） |
+| 数据归属（`user_id`） | 已实现 | user / assistant / model / provider / conversation / chat 全部按用户隔离；chat 另按 `id + user_id + assistant_id` 锁定会话（见 `issue.md` 23 / 28） |
 | 模型提供商注册 | 已实现 | 支持 OpenAI 兼容协议(openai),可扩展；**归属到用户**，唯一键 `(user_id, protocol, base_url)` |
 | API Key 管理 | 已实现 | AES 对称加密存储；改 Key 时校验归属 |
 | 多轮对话(Chat) | 已实现 | 会话上下文拼装 + 消息落库 + 多提供商适配 |
@@ -69,10 +69,10 @@ user
 
 ## Chat 链路
 
-`POST /chat/{conversationId}/send`
+`POST /chat/{conversationId}/{assistantId}/send`
 
-1. 按 `conversationId` 查询会话
-2. 链路查询:conversation -> assistant -> model -> provider
+1. 按 `id + user_id + assistant_id` **三条件锁定会话**(取不到即 403 无权访问 —— 防越权/BOLA)
+2. 链路查询:**从会话派生** conversation -> assistant -> model -> provider,**逐层判空**(缺哪环报哪环,不再是 NPE)
 3. 拉取该会话全部历史消息(按 `seq` 升序)
 4. `system_prompt` 为空时回退到 assistant 的 prompt
 5. 组装请求:`system_prompt` + 历史消息 + 新用户消息
@@ -119,19 +119,20 @@ user
 | GET | `/assistant/getAllAssistant` | 助手列表 |
 | POST | `/conversation/create` | 创建会话 |
 | GET | `/conversation/{assistantId}/getAllConversation` | 某助手下的会话列表 |
-| POST | `/chat/{conversationId}/send` | 发送消息 |
-| GET | `/chat/{conversationId}/get` | 会话消息列表 |
+| POST | `/chat/{conversationId}/{assistantId}/send` | 发送消息 |
+| GET | `/chat/{conversationId}/{assistantId}/get` | 会话消息列表 |
 
 > **鉴权与归属**：除 `/auth/**` 放行外，其余接口都要求 `Authorization: Bearer <token>`（由 `JwtAuthenticationFilter` 校验，注册/登录都签发）。
-> 已接入归属校验的模块：**user / assistant / model / provider**（查询带 `user_id`、创建用 token 里的 `userId`、引用其它模块时校验归属是否相同）；
-> **conversation / chat 待做**（详见 `issue.md` 问题 23 / 28）。
+> 已接入归属校验的模块：**user / assistant / model / provider / conversation / chat**（查询带 `user_id`、创建用 token 里的 `userId`、引用其它模块时校验归属是否相同；
+> chat 另按 `id + user_id + assistant_id` 锁定会话,链路从会话派生）。
+> ⚠️ 仍待收口的一处：白名单是前缀匹配 `path.contains("/auth/")`，导致 `GET /auth/get` **不带 token 也能列出所有用户**（见 `issue.md` 问题 28）。
 >
 > ⚠️ **前端联调注意**：主键是 19 位雪花 ID，**超出 JS 的安全整数范围**（`Number.MAX_SAFE_INTEGER` 只有 16 位），
 > 直接用 `JSON.parse` 会丢精度。前端已用 `quoteBigInts` 兜底（见 `issue.md` 问题 29）。
 
 ## 路线图
 
-- 完成 JWT 接入的剩余部分:**conversation / chat 的归属校验**、过滤器异常处理(`issue.md` 20 / 23 / 28)
+- 收口 JWT 剩余部分:过滤器异常处理(该报 401 的别漏成 500,`issue.md` 20)、白名单改精确匹配+默认拒绝(`issue.md` 28)
 - 后端把 `Long` 序列化成字符串(雪花 ID 的治本方案,前端目前靠 `quoteBigInts` 绕开,`issue.md` 29)
 - 本地模型兼容(Ollama 等走 OpenAI 兼容端点,API Key 可空化)
 - 多模态消息(content 从字符串改为数组,支持图片)

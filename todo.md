@@ -14,4 +14,10 @@
   - 拦截器解析 `Authorization: Bearer`，把 `userId` 存入请求属性
   - 业务接口改从 token 取 `userId`（不再信任手传）
 - **联动**：直接影响 issue.md Issue 7 列表接口写法（`?userId=` 应改从 token 取）；一并解决 Issue 11（登录不返回 userId）。开发期可长过期 + 弱守卫，但身份层保留。
-- **状态**：待做。
+- **状态**：✅ **已完成**（归属校验的落地记录见 `finish.md` 问题 23 / 26 / 27 / 28；除 `/auth/**` 外所有接口都要求 `Bearer`）。落地要点：
+  - `Config/JwtUtil`（签发 / 验签 / 取 userId）+ `Config/JwtAuthenticationFilter`（`@Component`，自动注册）；
+  - **注册与登录都签发 token**，返回 `AuthVo{id, account, nickname, token}`；
+  - Filter 验签后 `req.setAttribute("userId", ...)`，各 Controller 用 `@RequestAttribute("userId")` 取；DTO 里的 `userId` 字段**已全部删除**。
+- **遗留（都在同一个文件里，可一次改完）**：
+  - ① `extractUserId` 放在 try 之外 → 该报 401 的场景漏成容器默认 500（`issue.md` 20）；
+  - ② 白名单 `path.contains("/auth/")` 过宽 → `GET /auth/get` 无 token 即可枚举用户（`issue.md` 28）。

@@ -22,9 +22,9 @@
   | 模型 | `GET /model/getAllModel/{providerId}` |
   | 助手 | `GET /assistant/getAllAssistant` |
   | 会话 | `GET /conversation/getAllConversation` |
-  | 消息 | `GET /chat/{conversationId}/get` |
+  | 消息 | `GET /chat/{conversationId}/{assistantId}/get` |
 
-- **残留（后续已收敛）**：① 归属过滤 —— user / assistant / model / provider 已按 `userId` 过滤；**conversation / chat 待做**（issue.md 问题 23 / 28）；② 前端已整体改为服务端拉取（见 issue.md 的「前端状态」）。
+- **残留（后续已收敛）**：① 归属过滤 —— user / assistant / model / provider / conversation / chat **均已按 `userId` 过滤**（issue.md 问题 23 / 28 已完成，只剩 `/auth/**` 白名单一处）；② 前端已整体改为服务端拉取（见 issue.md 的「前端状态」）。
 
 ### 10. 注册/响应泄露敏感信息 ✅已修正
 - **原现象**：register 响应与用户列表都带着 `$2a$...` BCrypt 密码哈希；`/auth/show` 还是无鉴权公开接口。
@@ -80,6 +80,7 @@
   | assistant | `createAssistant` / `findByUserId` |
   | model / provider | `registerModel` / `getAllModels` / `apiKey` / `getProvider` |
   | conversation | `create` / `findAllConversation` |
+  | chat | `sendMessage` / `getMessage` |
 
 - **备注**：⚠️ `/auth/**` 是放行路径，过滤器**不会**给它设 `userId` 属性 —— 所以 auth 路径上不能用 `@RequestAttribute`（会因属性缺失直接报错）。
 
@@ -96,3 +97,35 @@
   | 1 | 留空 | 留空 | 未覆盖 ✅ |
   | 2 | 留空 | **有值** | **已覆盖** ✅（修复前这里错报"未覆盖"） |
   | 3 | 有值 | `"   "` 空白串 | 未覆盖 ✅（`isBlank()` 生效） |
+
+### 4. Chat 链路无判空，全链 NPE ✅已修正
+- **原现象**：`conversation / assistant / model / provider` 逐层 `getById` 后**直接取属性**，任一环为 null（如引用了已删除的 ID）就 NPE → 全局兜底 500「土豆炸啦！？」，前端分不清断在哪一环。
+- **修法**：每层查到 null 都抛带语义的 `BusinessException` —— 会话取不到 → `403「无权访问该会话」`；
+  下游三环 → **`500`**「助手不存在」「模型不存在」「提供商不存在」（`ChatServiceImpl` L77 / L81 / L85）。
+- **口径**：会话那一步是**鉴权**（403 合理）；下游三环是"数据链路断了"，用 500 与全局兜底同口径 —— 可以接受，因为 message 已经明确，不用再靠「土豆炸啦！？」猜是哪一环。将来若想改 404，只动这三个常量即可。
+
+### 21. `maxTokens` 默认 1024 过小 → 思考模型回复正文为空 ✅已修正
+- **原现象**：思考模型会**先把输出预算花在 reasoning 上**，1024 被思考链烧完后正文没有余量 → AI 回复正文为空（`finish_reason` 大概率是 `"length"`）。
+- **验证过程**：前端把 `maxtokens` 手动填 **4096/8192** 再发一条，正文即正常 → 确认是此因。
+- **修法**：`ChatServiceImpl` 默认值 `1024` → **`4096`**
+  （`int maxTokens = dto.getMaxtokens() != 0 ? dto.getMaxtokens() : 4096;`）；前端默认值也是 4096，两边一致。
+- **残留**：① `ChatServiceImpl.java` L60 注释仍写"默认为1024"，与代码不一致（未改）；② 字段名 / 哨兵值用法见 issue.md 问题 3。
+- **备注**：与 issue.md 问题 22（未兜 `reasoning_content` / 未读 `finish_reason`）是同一现象的两面。
+
+### 24. `ModelController.apikey` 缺 `@Valid` ✅已修正
+- **原现象**：`@RequestBody ApiKeyDto dto` 没加 `@Valid`（同文件 register 有），一旦 `ApiKeyDto` 写了校验注解也**不会生效**。
+- **修法**：`ApiKeyDto` 补 `@NotBlank(message = "密钥不能为空,请填充api密钥")`（`apiKey`）+ `@NotNull(message = "提供商编号为空")`（`providerId`）；`ModelController.apikey` 补 `@Valid`。
+- **踩坑记录**：`providerId` 一开始写成 `@NotBlank` —— **`@NotBlank` 只适用于 `CharSequence`**，用在 `Long` 上会在校验阶段抛 `UnexpectedTypeException`。数字类型必须用 `@NotNull`。
+- **核对**：`git show a749d59:src/.../ApiKeyDto.java` 确认 `@NotBlank` / `@NotNull` 都已在提交里。
+  ⚠️ 该提交的 message 写的是"待改 @NotNull"，是**提交信息写岔了**，代码本身当时就是对的（按 `git diff` 无改动即为证）。
+
+### 28（chat 部分）. `sendMessage` / `getMessage` 无会话归属校验 ✅已修正 —— 提交 `1cc171e`
+- **原现象**：`ChatServiceImpl` 只按 `conversationId` 取会话 → 任何登录用户改个 id 就能**读别人的历史、往别人会话里写消息、烧别人的 API Key 额度**（BOLA，整套里最严重的一条）。
+- **修法**（三个动作）：
+  1. **端点路径带上 `assistantId`**：`POST /chat/{conversationId}/{assistantId}/send`、`GET /chat/{conversationId}/{assistantId}/get`；Controller 用 `@RequestAttribute("userId")` 取身份，**Service 签名同步加 `userId` / `assistantId`**。
+  2. **三条件锁定会话**：`lambdaQuery().eq(id).eq(userId).eq(assistantId).one()`，取不到即 `403「无权访问该会话」` —— 越权在**第一步**就被挡掉，**不再只是"该记录存在"**。
+  3. **链路改为从会话派生 + 逐层判空**：`assistant = getById(conv.getAssistantId())`（不再用入参 assistantId 去查，避免与 conv 断链后用到别人的助手/模型/Key）；`history` / `userMsg` / `asstMsg` 一律用 `conv.getId()`。
+- **写法要点（可复用）**：下游查询喂 `conv.getId()` **而不是路径变量** —— 这样"有人删掉那句归属校验"会**直接编译不过**，把安全约束钉进类型里。
+- **实测**：`compile_exit=0`（编译通过）；两个端点报的都是同一句「无权访问该会话」。
+  ⚠️ **跨用户实测还没做** —— 需要后端在跑 + 两个账号的 token，期望：A 拿 B 的 `conversationId` 调 `send` / `get` 都返回 `403 无权访问该会话`。
+- **残留**：`/auth/**` 整段放行的白名单问题，见 issue.md 问题 28。

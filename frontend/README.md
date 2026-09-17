@@ -47,7 +47,7 @@ npm run build      # 输出 dist/，可托管到任意静态服务器或 Nginx
    然后在提供商行内配置 API Key（`POST /model/apikey`）；可展开查看该提供商下的模型
 3. **助手** — `POST /assistant/create`；`userId` 由后端从 token 取，前端只需选 model（`modelId`）
 4. **会话与对话** — 先在页顶部**选一个助手**（会话列表是**按助手**查的），
-   再 `POST /conversation/create` 在该助手下建会话，然后在聊天框里 `POST /chat/{id}/send` 多轮对话
+   再 `POST /conversation/create` 在该助手下建会话，然后在聊天框里 `POST /chat/{conversationId}/{assistantId}/send` 多轮对话
 5. **调试日志** — 每步请求的原文、响应、耗时
 
 ## 与后端接口的对应关系
@@ -62,15 +62,16 @@ npm run build      # 输出 dist/，可托管到任意静态服务器或 Nginx
 | 某提供商下的模型 | `GET /model/getAllModel/{providerId}` |
 | 创建助手 / 助手列表 | `POST /assistant/create`、`GET /assistant/getAllAssistant` |
 | 创建会话 / 某助手的会话列表 | `POST /conversation/create`、`GET /conversation/{assistantId}/getAllConversation` |
-| 发送消息 / 拉取消息 | `POST /chat/{conversationId}/send`、`GET /chat/{conversationId}/get` |
+| 发送消息 / 拉取消息 | `POST /chat/{conversationId}/{assistantId}/send`、`GET /chat/{conversationId}/{assistantId}/get` |
 
 ## 已知的后端限制（界面里会给出对应提示）
 
-- `maxtokens` 默认 1024 偏小 —— 思考模型会把输出预算花在推理上，正文变空。前端默认填 **4096** 规避（`issue.md` 21）
 - 字段名是 `maxtokens`（非 `maxTokens`），拼错会被**静默忽略**（`issue.md` 3）
-- `stream=true` 会返回 SSE，而后端当前按普通 JSON 解析 → 会失败，建议不勾（`issue.md` 13）
+- `stream` 勾选框**目前是空开关**：后端 `toChatOptions` 没把 stream 往下传，勾了不生效（`issue.md` 13）
 - 会话创建时 `systemPrompt` 传空串会被判为「已覆盖」，但聊天链路按 `isBlank()` 回退，两边不一致（本页统一传 `null`）（`issue.md` 2）
-- `POST /chat/{conversationId}/send` 与 `GET /chat/{conversationId}/get` **尚未做会话归属校验**（`issue.md` 23 / 28）
+- ✅ 已修的两条：`maxTokens` 默认值已提到 **4096**（`issue.md` 21）；chat 两个端点**已做会话归属校验**
+  （按 `id + user_id + assistant_id` 锁定，不属于自己 → 403「无权访问该会话」），前端照常带 token 即可（`issue.md` 28）
+- ⚠️ `GET /auth/get`（本页「用户列表（调试用）」）**后端仍不需要 token**（白名单过宽，`issue.md` 28）—— 仅供调试，别当正式功能依赖
 
 ## 目录结构
 
