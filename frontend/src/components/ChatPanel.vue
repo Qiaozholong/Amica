@@ -3,8 +3,9 @@
 // 后端接口现状：
 //   GET  /conversation/{assistantId}/getAllConversation  -> 某个助手下的会话列表（按助手筛）
 //   POST /conversation/create                            -> 建会话（userId 从 token 取，前端不再传）
-//   GET  /chat/{conversationId}/get                      -> 该会话的消息
-//   POST /chat/{conversationId}/send                      -> 发消息
+//   GET  /chat/{conversationId}/{assistantId}/get        -> 该会话的消息
+//   POST /chat/{conversationId}/{assistantId}/send       -> 发消息
+//   （chat 两个端点的路径带 assistantId：后端按 id + userId + assistantId 三条件锁定会话）
 //
 // 因为会话列表是**按助手**查的，本页的交互改成"先选助手，再看它的会话"：
 // 顶部那个助手选择器既是列表的筛选条件，也是"创建会话"的目标。
@@ -85,7 +86,7 @@ async function loadConversations() {
 async function loadMessages() {
   if (!currentId.value) return
   try {
-    messages.value = await apiGetMessages(currentId.value)
+    messages.value = await apiGetMessages(currentId.value, currentAssistantId.value)
   } catch (e) {
     chatErr.value = e.message
   }
@@ -139,7 +140,7 @@ async function doSend() {
       reasoningEffort: chatForm.reasoningEffort || null,
       stream: chatForm.stream,
     }
-    await apiSendMessage(currentId.value, {
+    await apiSendMessage(currentId.value, currentAssistantId.value, {
       content,
       maxtokens: Number(chatForm.maxtokens) || 0,
       options,

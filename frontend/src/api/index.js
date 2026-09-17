@@ -35,7 +35,9 @@ export const apiCreateConversation = (data) => post('/conversation/create', data
 export const apiGetConversations = (assistantId) =>
   get(`/conversation/${assistantId}/getAllConversation`)
 // 发送消息，返回 ChatResponse{ content, model, inputTokens, outputtokens }
-export const apiSendMessage = (conversationId, data) =>
-  post(`/chat/${conversationId}/send`, data)
+// 路径**带 assistantId**：后端按 id + userId + assistantId 三条件锁定会话，取不到即 403（防越权）
+export const apiSendMessage = (conversationId, assistantId, data) =>
+  post(`/chat/${conversationId}/${assistantId}/send`, data)
 // 会话消息 -> MessagesEntity[]{ id, conversationId, role, content, seq, ... }
-export const apiGetMessages = (conversationId) => get(`/chat/${conversationId}/get`)
+export const apiGetMessages = (conversationId, assistantId) =>
+  get(`/chat/${conversationId}/${assistantId}/get`)
