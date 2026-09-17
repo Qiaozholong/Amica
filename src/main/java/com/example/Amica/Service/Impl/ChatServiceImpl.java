@@ -1,5 +1,6 @@
 package com.example.Amica.Service.Impl;
 
+import com.example.Amica.Common.BusinessException;
 import com.example.Amica.Common.Result;
 import com.example.Amica.Dto.Messages.MessagesDto;
 import com.example.Amica.Dto.Messages.OptionsDto;
@@ -55,20 +56,41 @@ public class ChatServiceImpl implements ChatService {
 
     //请求体
     @Override
-    public ChatResponse sendMessage(Long conversationId, MessagesDto dto) {
+    public ChatResponse sendMessage(Long conversationId, Long userId, MessagesDto dto, Long assistantId) {
         //检测传回的tokens是否为零，默认为1024
-        int maxTokens = dto.getMaxtokens() != 0 ? dto.getMaxtokens() : 1024;
-        //查询对话,确认话题id
-        ConversationEntity conv = conversationService.getById(conversationId);
+        int maxTokens = dto.getMaxtokens() != 0 ? dto.getMaxtokens() : 4096;
+
+        //先三重锁定conv的合法性，避免越权
+        ConversationEntity conv = conversationService
+                .lambdaQuery()
+                .eq(ConversationEntity::getId, conversationId)
+                .eq(ConversationEntity::getUserId, userId)
+                .eq(ConversationEntity::getAssistantId, assistantId)
+                .one();
+        //判断是否存在
+        if (conv == null) {
+            throw new BusinessException(403, "无权访问该会话");
+        }
         //链路查询，检查通路是否通畅
         AssistantEntity assistant = assistantService.getById(conv.getAssistantId());
+        if (assistant == null) {
+            throw new BusinessException(500, "助手不存在");
+        }
         ModelEntity model = modelService.getById(assistant.getModelId());
+        if (model == null) {
+            throw new BusinessException(500, "模型不存在");
+        }
         ProviderEntity providerEntity = providerService.getById(model.getProviderId());
+        if (providerEntity == null) {
+            throw new BusinessException(500, "提供商不存在");
+        }
+
+
         //拼接上下文
         //查询历史消息，根据conversationId的检索与Seq的排序呈现
         List<MessagesEntity> history = messagesService
                 .lambdaQuery()
-                .eq(MessagesEntity::getConversationId, conversationId)
+                .eq(MessagesEntity::getConversationId, conv.getId())
                 .orderByAsc(MessagesEntity::getSeq)
                 .list();
         //创建初始化ai请求体
@@ -101,7 +123,7 @@ public class ChatServiceImpl implements ChatService {
         int nextSeq = history.isEmpty() ? 0 : history.get(history.size() - 1).getSeq() + 1;
         //将用户输入的消息保存到上下文中
         MessagesEntity userMsg = new MessagesEntity();
-        userMsg.setConversationId(conversationId);
+        userMsg.setConversationId(conv.getId());
         userMsg.setRole("user");
         userMsg.setContent(dto.getContent());
         userMsg.setSeq(nextSeq);
@@ -111,7 +133,7 @@ public class ChatServiceImpl implements ChatService {
         ChatResponse resp = provider.chat(req);
         //保存接收到的assistant信息
         MessagesEntity asstMsg = new MessagesEntity();
-        asstMsg.setConversationId(conversationId);
+        asstMsg.setConversationId(conv.getId());
         asstMsg.setRole("assistant");
         asstMsg.setContent(resp.content());
         asstMsg.setSeq(nextSeq + 1);
@@ -128,11 +150,21 @@ public class ChatServiceImpl implements ChatService {
             default -> throw new RuntimeException("未知角色: " + role);
         };
     }
+
     @Override
-    public Result<List<MessagesEntity>> getMessage(Long conversationId){
+    public Result<List<MessagesEntity>> getMessage(Long conversationId, Long userId, Long assistantId) {
+        ConversationEntity conv = conversationService
+                .lambdaQuery()
+                .eq(ConversationEntity::getId, conversationId)
+                .eq(ConversationEntity::getUserId, userId)
+                .eq(ConversationEntity::getAssistantId, assistantId)
+                .one();
+        if (conv == null) {
+            throw new BusinessException(403, "无权访问该会话");
+        }
         List<MessagesEntity> history = messagesService
                 .lambdaQuery()
-                .eq(MessagesEntity::getConversationId, conversationId)
+                .eq(MessagesEntity::getConversationId, conv.getId())
                 .orderByAsc(MessagesEntity::getSeq)
                 .list();
 

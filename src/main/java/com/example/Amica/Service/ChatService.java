@@ -8,6 +8,8 @@ import com.example.Amica.Provider.model.ChatResponse;
 import java.util.List;
 
 public interface ChatService{
-    ChatResponse sendMessage(Long conversationId, MessagesDto dto);
-    Result<List<MessagesEntity>> getMessage(Long conversationId);
+    //发送信息的方法
+    ChatResponse sendMessage(Long conversationId,Long userId ,MessagesDto dto,Long assistantId);
+    //查询对应对话的上下文的方法
+    Result<List<MessagesEntity>> getMessage(Long conversationId,Long userId,Long assistantId);
 }

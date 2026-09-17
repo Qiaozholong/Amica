@@ -14,21 +14,28 @@ import java.util.List;
 @RequestMapping("/chat")
 public class ChatController {
     private final ChatService chatService;
+
     public ChatController(ChatService chatService) {
         this.chatService = chatService;
     }
-    @PostMapping("/{conversationId}/send")
+
+    @PostMapping("/{conversationId}/{assistantId}/send")
     public Result<ChatResponse> send(
             @PathVariable Long conversationId,
-            @Valid @RequestBody MessagesDto dto
-    ){
-        return Result.success(chatService.sendMessage(conversationId,dto));
+            @PathVariable Long assistantId,
+            @Valid @RequestBody MessagesDto dto,
+            @RequestAttribute("userId") Long userId
+    ) {
+        return Result.success(chatService.sendMessage(conversationId, userId, dto,assistantId ));
     }
-    @GetMapping("/{conversationId}/get")
+
+    @GetMapping("/{conversationId}/{assistantId}/get")
     public Result<List<MessagesEntity>> get(
-            @PathVariable Long conversationId
-    ){
-        return chatService.getMessage(conversationId);
+            @PathVariable Long conversationId,
+            @PathVariable Long assistantId,
+            @RequestAttribute("userId") Long userId
+    ) {
+        return chatService.getMessage(conversationId, userId, assistantId);
     }
 
 }
