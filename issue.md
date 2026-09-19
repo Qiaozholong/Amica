@@ -61,7 +61,9 @@
 - **真正的风险**：哪天顺手把 `.withStream(o.getStream())` 补上（"完善 options"最自然的一步），响应立刻变 SSE 流，`mapper.readTree` 直接解析失败。
 - **建议**：二选一 —— ①**先别接**：`OptionsDto.stream` 保留但标注"暂不支持"，前端把勾选框**禁用或去掉**；
   ②**真要做**：`withStream` + SSE 逐行解析（`BodyHandlers.ofInputStream`，按 `data:` 前缀读、遇 `[DONE]` 结束）。
-- **备注**：`ChatServiceImpl` L54 已注释"stream 先挂起"，方向是对的 —— 只是前端还在提供这个开关，容易让人误以为生效。
+- **备注**：`ChatServiceImpl` L54 已注释"stream 先挂起"，方向是对的。
+  ✅ **前端已于本轮禁用该勾选框并标注「暂不支持」**（`ChatPanel.vue`，含"为什么禁用"的注释）—— 不再给用户无效开关。
+  放开的那天要同时做三件事：`toChatOptions` 里补 `withStream` + `OpenAiProvider` 写 SSE 解析 + 前端解除禁用。
 
 ### 14. 并发下 `seq` 可能重复 ❓
 - **位置**：`ChatServiceImpl.java` L123（`history.last.seq + 1` 算 nextSeq）、`sql/init.sql` L84（`INDEX idx_conv_seq (conversation_id, seq)` 非唯一）
@@ -176,8 +178,11 @@
 | --- | --- |
 | 问题 3 `maxtokens` 改名 `maxTokens` | 后端改名后，同步 `ChatPanel` 与 `frontend/README.md` |
 | ~~问题 21 默认值 1024 偏小~~ | ✅ 已修（后端默认 4096），前端无需再改 |
-| 问题 13 `stream=true` | 勾选框**目前无效果**（后端没往下传）→ 建议先禁用/去掉并注明"暂不支持"，等后端做了 SSE 再放开 |
+| 问题 13 `stream=true` | ✅ **已禁用**勾选框并标注「暂不支持」（`ChatPanel.vue`），等后端做了 SSE 再放开 |
 | 问题 28 剩下的白名单 | 若把 `/auth/get` 收回鉴权，前端「用户列表（调试用）」需带 token（已带）或直接下掉该页 |
+
+> 📌 **接下来的前端工作不在本表里**：多模态 / 模型能力那块见 **`todo.md` 第 2 项**
+> （模型页加能力选择、聊天页按能力决定是否显示选图入口、读 `metadata.parts` 渲染图片 —— 注意 `metadata` 是字符串，要再 `JSON.parse` 一次）。
 
 > ✅ `frontend/README.md` 已同步重写（登录态与鉴权、雪花 ID 保护、新接口表、已知限制）。
 > ✅ conversation / chat 均已接 JWT：前端不再传 `userId`；会话列表改为**按助手**查（`ChatPanel` 顶部先选助手）。

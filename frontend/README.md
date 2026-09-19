@@ -67,7 +67,7 @@ npm run build      # 输出 dist/，可托管到任意静态服务器或 Nginx
 ## 已知的后端限制（界面里会给出对应提示）
 
 - 字段名是 `maxtokens`（非 `maxTokens`），拼错会被**静默忽略**（`issue.md` 3）
-- `stream` 勾选框**目前是空开关**：后端 `toChatOptions` 没把 stream 往下传，勾了不生效（`issue.md` 13）
+- `stream` 勾选框**已禁用**并标注「暂不支持」：后端 `toChatOptions` 没把 stream 往下传，勾了也不生效（`issue.md` 13）
 - 会话创建时 `systemPrompt` 传空串会被判为「已覆盖」，但聊天链路按 `isBlank()` 回退，两边不一致（本页统一传 `null`）（`issue.md` 2）
 - ✅ 已修的两条：`maxTokens` 默认值已提到 **4096**（`issue.md` 21）；chat 两个端点**已做会话归属校验**
   （按 `id + user_id + assistant_id` 锁定，不属于自己 → 403「无权访问该会话」），前端照常带 token 即可（`issue.md` 28）

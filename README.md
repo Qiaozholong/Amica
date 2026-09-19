@@ -135,7 +135,7 @@ user
 - 收口 JWT 剩余部分:过滤器异常处理(该报 401 的别漏成 500,`issue.md` 20)、白名单改精确匹配+默认拒绝(`issue.md` 28)
 - 后端把 `Long` 序列化成字符串(雪花 ID 的治本方案,前端目前靠 `quoteBigInts` 绕开,`issue.md` 29)
 - 本地模型兼容(Ollama 等走 OpenAI 兼容端点,API Key 可空化)
-- 多模态消息(content 从字符串改为数组,支持图片)
+- 多模态消息:按**模型能力**解耦(`todo.md` 第 2 项) —— 能力声明驱动格式, 图片走 `metadata.parts`, 纯文本模型走 OCR 降级
 - `messages` 表 `(conversation_id, seq)` 唯一索引,防并发重复
 - 前端形象(虚拟形象 / 桌宠)
 - 多种输出途径,如 TTS 语音播报
