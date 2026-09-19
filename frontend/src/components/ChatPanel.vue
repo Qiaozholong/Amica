@@ -42,7 +42,7 @@ const chatForm = reactive({
   temperature: '',
   topP: '',
   reasoningEffort: '',
-  stream: false,
+  stream: false,   // 后端未实现 SSE（issue.md 13），界面已禁用这个开关；保留字段只为不改请求体形状
 })
 
 function current() {
@@ -293,12 +293,15 @@ onMounted(loadAll)
           </div>
           <div class="field">
             <label>stream</label>
-            <input v-model="chatForm.stream" type="checkbox" style="width: 16px" />
+            <!-- 禁用原因：后端 toChatOptions() 没调 withStream()，ChatOptions.stream 恒为 null，
+                 勾了也不会写进请求体 —— 不给用户"无效开关"（issue.md 问题 13） -->
+            <input v-model="chatForm.stream" type="checkbox" style="width: 16px" disabled />
           </div>
           <button class="primary" type="submit" :disabled="chatBusy || !chatText.trim()">发送</button>
         </form>
         <div class="hint gray" style="margin-top: 6px">
-          ⚠ <kbd>stream</kbd> 勾上会返回 SSE 流，后端目前按普通 JSON 解析（issue.md 问题 13，未修），建议保持不勾。
+          ⚠ <kbd>stream</kbd> <b>暂不支持</b>（已禁用）：后端 <kbd>toChatOptions</kbd> 还没把 stream 传下去，
+          勾了也不会生效；等实现 SSE 流式解析后再放开（issue.md 问题 13）。
         </div>
         <div v-if="chatErr" class="msg err">{{ chatErr }}</div>
       </template>
